@@ -5,7 +5,15 @@ import { StatusBar } from './components/layout/StatusBar'
 import { TerminalPanel } from './components/terminal/TerminalPanel'
 import { WelcomeView } from './routes/WelcomeView'
 import { DashboardView } from './routes/DashboardView'
-import { PlaceholderView } from './routes/PlaceholderView'
+import { AgentsView } from './routes/AgentsView'
+import { CommandsView } from './routes/CommandsView'
+import { SkillsView } from './routes/SkillsView'
+import { ClaudeMdView } from './routes/ClaudeMdView'
+import { HooksView } from './routes/HooksView'
+import { McpView } from './routes/McpView'
+import { WorkflowView } from './routes/WorkflowView'
+import { PlanningView } from './routes/PlanningView'
+import { KnowledgeView } from './routes/KnowledgeView'
 
 function MainContent(): React.ReactElement {
   const currentView = useAppStore((s) => s.currentView)
@@ -15,24 +23,24 @@ function MainContent(): React.ReactElement {
       return <WelcomeView />
     case 'dashboard':
       return <DashboardView />
-    case 'workflow':
-      return <PlaceholderView title="Workflow Engine" />
     case 'agents':
-      return <PlaceholderView title="Agent Studio" />
-    case 'planning':
-      return <PlaceholderView title="Planning Hub" />
-    case 'claude-md':
-      return <PlaceholderView title="CLAUDE.md Editor" />
+      return <AgentsView />
     case 'commands':
-      return <PlaceholderView title="Command Builder" />
+      return <CommandsView />
     case 'skills':
-      return <PlaceholderView title="Skill Builder" />
+      return <SkillsView />
+    case 'claude-md':
+      return <ClaudeMdView />
     case 'hooks':
-      return <PlaceholderView title="Hook Configuration" />
+      return <HooksView />
     case 'mcp':
-      return <PlaceholderView title="MCP Studio" />
+      return <McpView />
+    case 'workflow':
+      return <WorkflowView />
+    case 'planning':
+      return <PlanningView />
     case 'knowledge':
-      return <PlaceholderView title="Knowledge Dashboard" />
+      return <KnowledgeView />
     default:
       return <WelcomeView />
   }
@@ -52,6 +60,13 @@ export default function App(): React.ReactElement {
       setClaudeInfo(installed, version)
     })()
   }, [setClaudeInfo])
+
+  // Start file watcher when project opens
+  useEffect(() => {
+    if (project) {
+      window.forgeApi.project.startWatching(project.path)
+    }
+  }, [project?.path])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -120,22 +135,16 @@ export default function App(): React.ReactElement {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
-      {/* Title bar drag region */}
       <div className="h-[3px] drag-region bg-bg shrink-0" />
 
-      {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
         <Sidebar />
 
-        {/* Content + Terminal */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Content */}
           <div className="flex-1 overflow-hidden">
             <MainContent />
           </div>
 
-          {/* Terminal resize handle */}
           {project && terminalVisible && (
             <div
               onMouseDown={handleResizeStart}
@@ -143,7 +152,6 @@ export default function App(): React.ReactElement {
             />
           )}
 
-          {/* Terminal */}
           {project && terminalVisible && (
             <div style={{ height: terminalHeight }} className="shrink-0">
               <TerminalPanel />
@@ -152,7 +160,6 @@ export default function App(): React.ReactElement {
         </div>
       </div>
 
-      {/* Status bar */}
       <StatusBar />
     </div>
   )
