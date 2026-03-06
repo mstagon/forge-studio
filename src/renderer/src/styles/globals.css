@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0D1117;
+  --color-surface: #161B22;
+  --color-surface-hover: #1C2128;
+  --color-border: #30363D;
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #8B949E;
+  --color-accent: #58A6FF;
+  --color-success: #3FB950;
+  --color-warning: #D29922;
+  --color-error: #F85149;
+  --color-agent-plan: #A371F7;
+  --color-agent-dev: #58A6FF;
+  --color-agent-review: #F0883E;
+  --color-agent-doc: #3FB950;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Electron drag region */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* xterm.js overrides */
+.xterm {
+  padding: 8px;
+}
