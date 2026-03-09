@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { CanvasAddon } from '@xterm/addon-canvas'
 import '@xterm/xterm/css/xterm.css'
 import { useAppStore } from '../../stores/app.store'
 
@@ -46,10 +48,20 @@ export function TerminalPanel(): React.ReactElement {
     })
 
     const fitAddon = new FitAddon()
+    const unicode11 = new Unicode11Addon()
     terminal.loadAddon(fitAddon)
+    terminal.loadAddon(unicode11)
     terminal.loadAddon(new WebLinksAddon())
+    terminal.unicode.activeVersion = '11'
 
     terminal.open(containerRef.current)
+
+    try {
+      terminal.loadAddon(new CanvasAddon())
+    } catch {
+      // canvas addon may fail in some environments, fall back to DOM renderer
+    }
+
     fitAddon.fit()
 
     terminalRef.current = terminal

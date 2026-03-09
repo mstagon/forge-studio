@@ -26,10 +26,12 @@ export function createPtySession(cwd: string): string {
     cols: 120,
     rows: 30,
     cwd,
+    encoding: 'utf8',
     env: {
       ...cleanEnv,
       TERM: 'xterm-256color',
-      COLORTERM: 'truecolor'
+      COLORTERM: 'truecolor',
+      LANG: cleanEnv.LANG || 'en_US.UTF-8'
     }
   })
 
