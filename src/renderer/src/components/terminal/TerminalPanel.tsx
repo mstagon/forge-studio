@@ -21,7 +21,7 @@ export function TerminalPanel(): React.ReactElement {
     const terminal = new Terminal({
       cursorBlink: true,
       fontSize: 13,
-      fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+      fontFamily: "'MesloLGS NF', 'FiraCode Nerd Font', 'Hack Nerd Font', 'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
       theme: {
         background: '#0D1117',
         foreground: '#E6EDF3',
