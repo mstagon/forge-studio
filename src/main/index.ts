@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { registerIpcHandlers } from './ipc/register'
+import { registerIpcHandlers, updateMainWindow } from './ipc/register'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -52,7 +52,7 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       const newWindow = createWindow()
-      registerIpcHandlers(newWindow)
+      updateMainWindow(newWindow)
     }
   })
 })

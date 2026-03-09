@@ -1,8 +1,14 @@
 import { useEffect, useCallback, useRef } from 'react'
+import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from './stores/app.store'
 import { Sidebar } from './components/layout/Sidebar'
 import { StatusBar } from './components/layout/StatusBar'
 import { TerminalPanel } from './components/terminal/TerminalPanel'
+import { RunBar } from './components/terminal/RunBar'
+import { CommandPalette } from './components/CommandPalette'
+import { ToastContainer } from './components/common/ToastContainer'
+import { ConfirmDialog } from './components/common/ConfirmDialog'
 import { WelcomeView } from './routes/WelcomeView'
 import { DashboardView } from './routes/DashboardView'
 import { AgentsView } from './routes/AgentsView'
@@ -14,6 +20,7 @@ import { McpView } from './routes/McpView'
 import { WorkflowView } from './routes/WorkflowView'
 import { PlanningView } from './routes/PlanningView'
 import { KnowledgeView } from './routes/KnowledgeView'
+import { TimelineView } from './routes/TimelineView'
 
 function MainContent(): React.ReactElement {
   const currentView = useAppStore((s) => s.currentView)
@@ -41,16 +48,46 @@ function MainContent(): React.ReactElement {
       return <PlanningView />
     case 'knowledge':
       return <KnowledgeView />
+    case 'timeline':
+      return <TimelineView />
     default:
       return <WelcomeView />
   }
 }
 
+function DirtyNavGuard(): React.ReactElement | null {
+  const { pendingView, setPendingView, setDirtyView } = useAppStore()
+  const { t } = useTranslation()
+  if (!pendingView) return null
+  return (
+    <ConfirmDialog
+      title={t('dialog.unsavedTitle')}
+      message={t('dialog.unsavedMessage')}
+      confirmLabel={t('common.leave')}
+      cancelLabel={t('common.stay')}
+      variant="warning"
+      onConfirm={() => {
+        setDirtyView(false)
+        const view = pendingView
+        setPendingView(null)
+        useAppStore.setState({ currentView: view })
+      }}
+      onCancel={() => setPendingView(null)}
+    />
+  )
+}
+
 export default function App(): React.ReactElement {
-  const { project, terminalVisible, terminalHeight, setTerminalHeight, setClaudeInfo, setView } = useAppStore()
+  const { project, terminalVisible, terminalHeight, setTerminalHeight, setClaudeInfo, setView, theme, clearProject } = useAppStore()
+  const { t } = useTranslation()
   const resizingRef = useRef(false)
   const startYRef = useRef(0)
   const startHeightRef = useRef(0)
+
+  // Apply theme on mount
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   // Check Claude CLI on mount
   useEffect(() => {
@@ -72,6 +109,15 @@ export default function App(): React.ReactElement {
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if (!e.metaKey && !e.ctrlKey) return
+
+      // Cmd+K: Command Palette (always available)
+      if (e.key === 'k') {
+        e.preventDefault()
+        const store = useAppStore.getState()
+        store.setCommandPaletteOpen(!store.commandPaletteOpen)
+        return
+      }
+
       if (!project) return
 
       const viewMap: Record<string, Parameters<typeof setView>[0]> = {
@@ -134,8 +180,24 @@ export default function App(): React.ReactElement {
   }, [setTerminalHeight])
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
-      <div className="h-[3px] drag-region bg-bg shrink-0" />
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-bg text-text-primary">
+      {/* Titlebar drag region (macOS traffic lights sit here) */}
+      <div className="h-[38px] drag-region bg-surface border-b border-border shrink-0 flex items-center">
+        {/* Spacer for macOS traffic light buttons (~78px) */}
+        <div className="w-[78px] shrink-0" />
+        <span className="text-xs font-medium text-text-secondary truncate">
+          {project ? project.name : 'Forge Studio'}
+        </span>
+        {project && (
+          <button
+            onClick={() => clearProject()}
+            className="no-drag ml-2 p-1 rounded hover:bg-surface-hover text-text-secondary hover:text-text-primary transition-colors"
+            title={t('common.closeProject')}
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
 
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
@@ -153,14 +215,20 @@ export default function App(): React.ReactElement {
           )}
 
           {project && terminalVisible && (
-            <div style={{ height: terminalHeight }} className="shrink-0">
-              <TerminalPanel />
+            <div style={{ height: terminalHeight }} className="shrink-0 flex flex-col">
+              <RunBar />
+              <div className="flex-1 overflow-hidden">
+                <TerminalPanel />
+              </div>
             </div>
           )}
         </div>
       </div>
 
       <StatusBar />
+      <CommandPalette />
+      <ToastContainer />
+      <DirtyNavGuard />
     </div>
   )
 }
