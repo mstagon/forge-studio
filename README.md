@@ -5,7 +5,7 @@
 > Stop editing scattered text files. Build your AI development workflow with a visual desktop app.
 
 <p align="center">
-  <img src="docs/assets/screenshot-dashboard.png" alt="Forge Studio Dashboard" width="800" />
+<img width="1512" height="1012" alt="dashboard" src="https://github.com/user-attachments/assets/dbbde606-c31b-4afc-bea3-18fc925c89b9" />
 </p>
 
 ---
