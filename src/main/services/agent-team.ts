@@ -76,13 +76,13 @@ function buildFeatureTeam(featureName: string): TeamMember[] {
     {
       role: 'Product Manager',
       agent: 'product-planner',
-      prompt: `You are a product manager. Write a comprehensive PRD (Product Requirements Document) for the feature: "${featureName}". If docs/planning/project-overview.md exists, use it as context for project-level alignment. Include: background, target users, user stories, functional requirements, edge cases, non-functional requirements, and success metrics. Save the output to docs/prd/${featureName}.md`,
+      prompt: `You are a product manager. Write a comprehensive PRD (Product Requirements Document) for the feature: "${featureName}". If docs/planning/project-overview.md exists, use it as context for project-level alignment. If docs/templates/prd-template.md exists, follow that template structure. Include: background, target users, user stories, functional requirements, edge cases, non-functional requirements, and success metrics. Save the output to docs/prd/${featureName}.md`,
       outputFile: `docs/prd/${featureName}.md`
     },
     {
       role: 'Tech Architect',
       agent: 'tech-architect',
-      prompt: `You are a tech architect. Read the PRD from docs/prd/${featureName}.md and create a detailed technical specification. If docs/planning/architecture.md exists, align with the project architecture. Include: architecture overview, component design, data models, API contracts, state management approach, error handling strategy, and test plan. Use context7 MCP to verify any package APIs. Save the output to docs/specs/${featureName}-spec.md`,
+      prompt: `You are a tech architect. Read the PRD from docs/prd/${featureName}.md and create a detailed technical specification. If docs/planning/architecture.md exists, align with the project architecture. If docs/templates/spec-template.md exists, follow that template structure. Include: architecture overview, component design, data models, API contracts, state management approach, error handling strategy, and test plan. Use context7 MCP to verify any package APIs. Save the output to docs/specs/${featureName}-spec.md`,
       outputFile: `docs/specs/${featureName}-spec.md`
     },
     {
@@ -104,7 +104,7 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 async function scanExistingDocs(projectPath: string): Promise<string[]> {
-  const docDirs = ['planning', 'prd', 'specs', 'planningdocs', 'architecture']
+  const docDirs = ['planning', 'prd', 'specs', 'planningdocs', 'architecture', 'templates']
   const found: string[] = []
   for (const dir of docDirs) {
     try {
