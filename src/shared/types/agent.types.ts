@@ -4,7 +4,6 @@ export interface AgentConfig {
   group: 'planning' | 'development' | 'review' | 'documentation' | 'custom'
   content: string
   filePath: string
-  isActive: boolean
 }
 
 export interface CommandConfig {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, AlertTriangle, CheckCircle2, Plus, Search, Upload, Trash2, Database, ArrowUpCircle, X } from 'lucide-react'
+import { BookOpen, AlertTriangle, CheckCircle2, Plus, Search, Upload, Trash2, Database, ArrowUpCircle, X, Pencil } from 'lucide-react'
 import { useAppStore } from '../stores/app.store'
 import { toast } from '../stores/toast.store'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
@@ -42,6 +42,11 @@ export function KnowledgeView(): React.ReactElement {
   const [escalation, setEscalation] = useState<EscalationResult | null>(null)
 
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editTags, setEditTags] = useState('')
+  const [editCategory, setEditCategory] = useState('')
 
   // Add form state
   const [addTitle, setAddTitle] = useState('')
@@ -104,6 +109,31 @@ export function KnowledgeView(): React.ReactElement {
       toast.success(t('knowledge.lessonsImported', { count }))
     } catch {
       toast.error(t('knowledge.lessonsFileNotFound'))
+    }
+  }
+
+  const startEdit = (entry: KnowledgeEntry): void => {
+    setEditingId(entry.id)
+    setEditTitle(entry.title)
+    setEditContent(entry.content)
+    setEditTags(entry.tags)
+    setEditCategory(entry.category)
+  }
+
+  const handleUpdate = async (): Promise<void> => {
+    if (editingId === null || !editTitle) return
+    try {
+      await window.forgeApi.knowledge.update(editingId, {
+        title: editTitle,
+        content: editContent,
+        tags: editTags.split(',').map((t: string) => t.trim()).filter(Boolean),
+        category: editCategory
+      })
+      toast.success(t('knowledge.entryUpdated'))
+      setEditingId(null)
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -335,42 +365,101 @@ export function KnowledgeView(): React.ReactElement {
           ) : (
             entries.map((entry) => (
               <div key={entry.id} className="bg-surface border border-border rounded-lg p-4 group">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {entry.repeatCount >= 3 ? (
-                      <AlertTriangle size={14} className="text-warning" />
-                    ) : (
-                      <CheckCircle2 size={14} className="text-success" />
+                {editingId === entry.id ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+                        />
+                      </div>
+                      <select
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        className="bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none"
+                      >
+                        <option value="lesson">{t('knowledge.categories.lesson')}</option>
+                        <option value="pattern">{t('knowledge.categories.pattern')}</option>
+                        <option value="decision">{t('knowledge.categories.decision')}</option>
+                        <option value="tip">{t('knowledge.categories.tip')}</option>
+                      </select>
+                    </div>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={3}
+                      className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent resize-none"
+                    />
+                    <input
+                      value={editTags}
+                      onChange={(e) => setEditTags(e.target.value)}
+                      placeholder={t('knowledge.tagsPlaceholder')}
+                      className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleUpdate}
+                        disabled={!editTitle}
+                        className="px-3 py-1.5 bg-accent text-bg rounded text-xs font-medium hover:bg-accent/90 disabled:opacity-30"
+                      >
+                        {t('common.save')}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary border border-border rounded"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {entry.repeatCount >= 3 ? (
+                          <AlertTriangle size={14} className="text-warning" />
+                        ) : (
+                          <CheckCircle2 size={14} className="text-success" />
+                        )}
+                        <span className="text-sm font-medium text-text-primary">{entry.title}</span>
+                        <span className={clsx('text-[10px] px-1.5 py-0.5 rounded border', CATEGORY_COLORS[entry.category])}>
+                          {entry.category}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {entry.repeatCount > 1 && (
+                          <span className="text-xs bg-warning/10 text-warning px-1.5 py-0.5 rounded">{entry.repeatCount}x</span>
+                        )}
+                        <span className="text-xs text-text-secondary">{entry.updatedAt?.slice(0, 10)}</span>
+                        <button
+                          onClick={() => startEdit(entry)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/10 text-text-secondary hover:text-accent transition-all"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(entry.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/10 text-text-secondary hover:text-error transition-all"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    {entry.content && (
+                      <div className="text-xs text-text-secondary whitespace-pre-wrap">{entry.content}</div>
                     )}
-                    <span className="text-sm font-medium text-text-primary">{entry.title}</span>
-                    <span className={clsx('text-[10px] px-1.5 py-0.5 rounded border', CATEGORY_COLORS[entry.category])}>
-                      {entry.category}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {entry.repeatCount > 1 && (
-                      <span className="text-xs bg-warning/10 text-warning px-1.5 py-0.5 rounded">{entry.repeatCount}x</span>
+                    {entry.tags && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {entry.tags.split(',').filter(Boolean).map((tag) => (
+                          <span key={tag} className="text-[10px] bg-bg px-1.5 py-0.5 rounded text-text-secondary">
+                            {tag.trim()}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                    <span className="text-xs text-text-secondary">{entry.updatedAt?.slice(0, 10)}</span>
-                    <button
-                      onClick={() => setConfirmDelete(entry.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/10 text-text-secondary hover:text-error transition-all"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-                {entry.content && (
-                  <div className="text-xs text-text-secondary whitespace-pre-wrap">{entry.content}</div>
-                )}
-                {entry.tags && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {entry.tags.split(',').filter(Boolean).map((tag) => (
-                      <span key={tag} className="text-[10px] bg-bg px-1.5 py-0.5 rounded text-text-secondary">
-                        {tag.trim()}
-                      </span>
-                    ))}
-                  </div>
+                  </>
                 )}
               </div>
             ))

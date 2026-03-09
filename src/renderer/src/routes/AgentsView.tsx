@@ -76,8 +76,7 @@ export function AgentsView(): React.ReactElement {
         displayName: fileName,
         group: 'custom',
         content: editContent,
-        filePath: '',
-        isActive: true
+        filePath: ''
       })
       setDirty(false)
       setIsNew(false)

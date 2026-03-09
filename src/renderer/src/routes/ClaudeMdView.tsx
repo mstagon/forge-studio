@@ -26,7 +26,7 @@ export function ClaudeMdView(): React.ReactElement {
         setRawContent(data.raw)
         if (data.sections.length > 0) setSelectedIdx(0)
       }
-    })
+    }).catch(() => {})
   }, [project?.path])
 
   // Sync dirty state with global dirtyView

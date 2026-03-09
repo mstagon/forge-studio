@@ -76,7 +76,7 @@ export function HooksView(): React.ReactElement {
 
   useEffect(() => {
     if (!project) return
-    window.forgeApi.settings.read(project.path).then(setSettings)
+    window.forgeApi.settings.read(project.path).then(setSettings).catch(() => {})
   }, [project?.path])
 
   useEffect(() => {

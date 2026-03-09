@@ -1,6 +1,6 @@
 import type { IPty } from 'node-pty'
 import { platform } from 'os'
-import { access, readdir } from 'fs/promises'
+import { access, readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../../shared/constants/channels'
@@ -125,6 +125,20 @@ function injectExistingDocsContext(prompt: string, existingDocs: string[]): stri
   return `${prompt}\n\nIMPORTANT: The following existing documents are available in the project. Read and reference them as context before generating your output:\n${docList}`
 }
 
+async function loadAgentContent(projectPath: string, agentName: string): Promise<string | null> {
+  const agentFile = join(projectPath, '.claude', 'agents', `${agentName}.md`)
+  try {
+    return await readFile(agentFile, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+function mergeAgentPrompt(agentContent: string | null, taskPrompt: string): string {
+  if (!agentContent) return taskPrompt
+  return `${agentContent}\n\n---\n\n## Current Task\n\n${taskPrompt}`
+}
+
 export async function startTeam(projectPath: string, name: string, mode: TeamMode = 'feature'): Promise<TeamRunState> {
   if (currentTeamRun?.status === 'running') {
     throw new Error('A team is already running')
@@ -132,10 +146,17 @@ export async function startTeam(projectPath: string, name: string, mode: TeamMod
 
   const existingDocs = await scanExistingDocs(projectPath)
   const rawMembers = mode === 'project' ? buildProjectTeam(name) : buildFeatureTeam(name)
-  const members = rawMembers.map((m) => ({
-    ...m,
-    prompt: injectExistingDocsContext(m.prompt, existingDocs.filter((d) => d !== m.outputFile))
-  }))
+
+  // Load agent file content and merge with task prompts
+  const members: TeamMember[] = []
+  for (const m of rawMembers) {
+    const agentContent = await loadAgentContent(projectPath, m.agent)
+    const merged = mergeAgentPrompt(agentContent, m.prompt)
+    members.push({
+      ...m,
+      prompt: injectExistingDocsContext(merged, existingDocs.filter((d) => d !== m.outputFile))
+    })
+  }
 
   // Check which steps already have output files (resume support)
   let firstPending = 0
@@ -230,17 +251,30 @@ function runNextMember(projectPath: string): void {
     currentPty = null
     if (!currentTeamRun) return
 
-    member.status = exitCode === 0 ? 'done' : 'failed'
-
     if (exitCode !== 0) {
+      member.status = 'failed'
       currentTeamRun.status = 'failed'
       emit(currentTeamRun)
       return
     }
 
-    currentTeamRun.currentMember++
-    emit(currentTeamRun)
-    runNextMember(projectPath)
+    // Verify the expected output file was created
+    fileExists(join(projectPath, member.outputFile)).then((exists) => {
+      member.status = exists ? 'done' : 'failed'
+      if (!exists) {
+        member.output += `\n\n[Forge Studio] Warning: expected output file ${member.outputFile} was not created.`
+      }
+
+      if (member.status === 'failed') {
+        currentTeamRun!.status = 'failed'
+        emit(currentTeamRun!)
+        return
+      }
+
+      currentTeamRun!.currentMember++
+      emit(currentTeamRun!)
+      runNextMember(projectPath)
+    })
   })
 
   // Check for timeout every 30s — kill if no output for TIMEOUT_MS

@@ -33,7 +33,7 @@ export function McpView(): React.ReactElement {
     window.forgeApi.mcp.list().then((data: McpServerConfig[]) => {
       setServers(data)
       setLoading(false)
-    })
+    }).catch(() => { setLoading(false) })
   }
 
   useEffect(() => { loadServers() }, [])

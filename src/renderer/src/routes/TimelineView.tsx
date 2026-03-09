@@ -324,7 +324,7 @@ export function TimelineView(): React.ReactElement {
         <button
           onClick={() => {
             setLoading(true)
-            window.forgeApi.git.log(project.path, 50).then(setCommits).finally(() => setLoading(false))
+            window.forgeApi.git.log(project.path, 50).then(setCommits).catch(() => {}).finally(() => setLoading(false))
             refreshStats()
           }}
           className="p-2 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"

@@ -25,8 +25,7 @@ export async function listAgents(projectPath: string): Promise<AgentConfig[]> {
         displayName: formatDisplayName(name),
         group: inferAgentGroup(name, content),
         content,
-        filePath: file.endsWith('.md') ? filePath : join(dir, `${name}.md`),
-        isActive: true
+        filePath: file.endsWith('.md') ? filePath : join(dir, `${name}.md`)
       })
     }
     return agents.sort((a, b) => groupOrder(a.group) - groupOrder(b.group))

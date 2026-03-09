@@ -199,7 +199,7 @@ export function PlanningView(): React.ReactElement {
     })
     window.forgeApi.team.getState().then((state) => {
       if (state) setTeamState(state as TeamRunState)
-    })
+    }).catch(() => {})
     return unsub
   }, [])
 

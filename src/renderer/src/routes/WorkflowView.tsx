@@ -125,7 +125,7 @@ export function WorkflowView(): React.ReactElement {
     // Check for existing state on mount
     window.forgeApi.workflow.getState().then((state) => {
       if (state) setRunState(state as WorkflowRunState)
-    })
+    }).catch(() => {})
     return unsub
   }, [])
 

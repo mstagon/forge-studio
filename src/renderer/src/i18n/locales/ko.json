@@ -265,6 +265,7 @@
     "deleteMessage": "이 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     "entryAdded": "지식 항목이 추가되었습니다.",
     "addFailed": "항목 추가 실패: {{error}}",
+    "entryUpdated": "지식 항목이 수정되었습니다.",
     "entryDeleted": "지식 항목이 삭제되었습니다.",
     "deleteFailed": "항목 삭제 실패: {{error}}",
     "lessonsImported": "{{count}}건의 레슨을 가져왔습니다.",

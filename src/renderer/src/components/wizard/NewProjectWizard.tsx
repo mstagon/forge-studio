@@ -22,7 +22,7 @@ export function NewProjectWizard({ onClose, onComplete }: Props): React.ReactEle
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    window.forgeApi.presets.list().then(setPresets)
+    window.forgeApi.presets.list().then(setPresets).catch(() => {})
   }, [])
 
   const handleSelectFolder = async (): Promise<void> => {

@@ -265,6 +265,7 @@
     "deleteMessage": "Are you sure you want to delete this entry? This action cannot be undone.",
     "entryAdded": "Knowledge entry added",
     "addFailed": "Failed to add entry: {{error}}",
+    "entryUpdated": "Knowledge entry updated",
     "entryDeleted": "Knowledge entry deleted",
     "deleteFailed": "Failed to delete entry: {{error}}",
     "lessonsImported": "{{count}} lessons imported.",
