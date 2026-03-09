@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, Eye, Code, Plus, Trash2 } from 'lucide-react'
 import { useAppStore } from '../stores/app.store'
+import { toast } from '../stores/toast.store'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { clsx } from 'clsx'
 import type { ClaudeMdConfig, ClaudeMdSection } from '../../../shared/types/claude-md.types'
 
 export function ClaudeMdView(): React.ReactElement {
+  const { t } = useTranslation()
   const project = useAppStore((s) => s.project)
+  const setDirtyView = useAppStore((s) => s.setDirtyView)
   const [config, setConfig] = useState<ClaudeMdConfig | null>(null)
   const [selectedIdx, setSelectedIdx] = useState(-1)
   const [mode, setMode] = useState<'visual' | 'raw'>('visual')
@@ -25,6 +29,16 @@ export function ClaudeMdView(): React.ReactElement {
     })
   }, [project?.path])
 
+  // Sync dirty state with global dirtyView
+  useEffect(() => {
+    setDirtyView(dirty)
+  }, [dirty, setDirtyView])
+
+  // Clean up dirtyView on unmount
+  useEffect(() => {
+    return () => setDirtyView(false)
+  }, [setDirtyView])
+
   const handleSave = async (): Promise<void> => {
     if (!project || !config) return
     setSaving(true)
@@ -39,9 +53,17 @@ export function ClaudeMdView(): React.ReactElement {
         }
       } else {
         await window.forgeApi.claudeMd.write(project.path, config)
-        setRawContent(config.raw)
+        // Re-read to get the freshly serialized raw content
+        const freshData = await window.forgeApi.claudeMd.read(project.path)
+        if (freshData) {
+          setConfig(freshData)
+          setRawContent(freshData.raw)
+        }
       }
       setDirty(false)
+      toast.success(t('claudemd.saved'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('claudemd.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -65,7 +87,7 @@ export function ClaudeMdView(): React.ReactElement {
 
   const addSection = (): void => {
     if (!config) return
-    const newSection: ClaudeMdSection = { heading: 'New Section', level: 2, content: '', raw: '' }
+    const newSection: ClaudeMdSection = { heading: t('claudemd.newSection'), level: 2, content: '', raw: '' }
     setConfig({ ...config, sections: [...config.sections, newSection] })
     setSelectedIdx(config.sections.length)
     setDirty(true)
@@ -82,7 +104,7 @@ export function ClaudeMdView(): React.ReactElement {
   if (!config) {
     return (
       <div className="h-full flex items-center justify-center text-text-secondary">
-        {project?.hasClaudeMd ? 'Loading CLAUDE.md...' : 'No CLAUDE.md found in this project.'}
+        {project?.hasClaudeMd ? t('claudemd.loadingFile') : t('claudemd.notFound')}
       </div>
     )
   }
@@ -93,7 +115,7 @@ export function ClaudeMdView(): React.ReactElement {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-text-primary">CLAUDE.md</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t('claudemd.title')}</h2>
         <span className="text-sm text-text-secondary">— {config.title}</span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -102,13 +124,28 @@ export function ClaudeMdView(): React.ReactElement {
               onClick={() => setMode('visual')}
               className={clsx('px-3 py-1 text-xs flex items-center gap-1', mode === 'visual' ? 'bg-accent text-bg' : 'text-text-secondary hover:text-text-primary')}
             >
-              <Eye size={12} /> Visual
+              <Eye size={12} /> {t('claudemd.visual')}
             </button>
             <button
-              onClick={() => { setMode('raw'); setRawContent(config.raw) }}
+              onClick={async () => {
+                if (config && dirty && project) {
+                  // Re-serialize sections to raw before switching to raw mode
+                  const freshRaw = await window.forgeApi.claudeMd.read(project.path)
+                  // Build raw from current sections
+                  const lines: string[] = []
+                  if (config.title) lines.push(`# ${config.title}`, '')
+                  for (const s of config.sections) {
+                    lines.push(`${'#'.repeat(s.level)} ${s.heading}`, '', s.content, '')
+                  }
+                  setRawContent(lines.join('\n'))
+                } else {
+                  setRawContent(config?.raw ?? '')
+                }
+                setMode('raw')
+              }}
               className={clsx('px-3 py-1 text-xs flex items-center gap-1', mode === 'raw' ? 'bg-accent text-bg' : 'text-text-secondary hover:text-text-primary')}
             >
-              <Code size={12} /> Raw
+              <Code size={12} /> {t('claudemd.raw')}
             </button>
           </div>
           <button
@@ -116,7 +153,7 @@ export function ClaudeMdView(): React.ReactElement {
             disabled={!dirty || saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-bg rounded text-sm font-medium hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+            <Save size={14} /> {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -134,7 +171,7 @@ export function ClaudeMdView(): React.ReactElement {
           {/* Section list */}
           <div className="w-[220px] border-r border-border flex flex-col">
             <div className="p-2 border-b border-border flex items-center justify-between">
-              <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider px-1">Sections</span>
+              <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider px-1">{t('claudemd.sections')}</span>
               <button onClick={addSection} className="p-1 rounded hover:bg-surface-hover text-text-secondary hover:text-accent">
                 <Plus size={14} />
               </button>
@@ -183,7 +220,7 @@ export function ClaudeMdView(): React.ReactElement {
                 />
               </div>
             ) : (
-              <div className="text-text-secondary text-sm">Select a section to edit</div>
+              <div className="text-text-secondary text-sm">{t('claudemd.selectSection')}</div>
             )}
           </div>
         </div>
