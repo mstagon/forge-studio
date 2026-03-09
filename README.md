@@ -40,17 +40,39 @@ Claude Code is powerful, but setting it up is tedious:
 | Feature | Description |
 |---------|-------------|
 | **Project Setup** | 3-step wizard with tech stack presets. Generates CLAUDE.md + .claude/ automatically |
-| **Workflow Engine** | Visual pipeline editor with step execution, gate approvals, and output streaming |
+| **Planning Hub** | Project-level & feature-level AI team planning. Document import (text/data/web files). Auto-detect features from roadmap. Tab-based UI (Documents / AI Team) |
+| **Workflow Engine** | Preset pipeline selector (Dev / Quick). Step editor with gate approvals and output streaming. Auto-selects Dev pipeline when project docs exist |
 | **Agent Studio** | CRUD agents with React Flow node graph visualization |
 | **CLAUDE.md Editor** | Section-based visual editor + raw markdown mode |
 | **Command & Skill Builder** | GUI forms that auto-manage .claude/commands/ and .claude/skills/ |
 | **Hook Configuration** | Visual settings for SessionStart, PreToolUse, PostToolUse hooks |
 | **MCP Server Manager** | Add/remove MCP servers with quick-add for popular ones |
-| **Planning Hub** | docs/ browser + AI Team (PM → Architect → Task Decomposer) |
 | **Knowledge Base** | SQLite-backed lessons-learned with escalation to CLAUDE.md |
 | **Timeline** | Git commit history + project setup progress tracker |
 | **Integrated Terminal** | xterm.js + node-pty with RunBar for one-click script/command execution |
 | **Command Palette** | `Cmd+K` with 13 actions, keyboard navigation |
+
+### Planning System
+
+Forge Studio separates **planning** and **execution** into dedicated views:
+
+| Mode | AI Team | Output |
+|------|---------|--------|
+| **Project Planning** | Product Strategist → System Architect → Feature Planner | `docs/planning/` (overview, architecture, roadmap) |
+| **Feature Planning** | Product Manager → Tech Architect → Task Decomposer | `docs/prd/`, `docs/specs/` (PRD, spec, tasks) |
+
+- **Document Import**: Import external planning docs (markdown, text, data files) into categorized directories
+- **Feature Auto-Detection**: Scans `docs/prd/`, `docs/specs/`, and `docs/planning/feature-roadmap.md` for feature names
+- **Context Injection**: All AI team agents automatically reference existing project documents
+
+### Workflow Presets
+
+| Preset | Steps | Use Case |
+|--------|-------|----------|
+| **Dev Pipeline** | Implement → Code Review → Approval → Test → Document | After project planning is complete |
+| **Quick Pipeline** | Implement → Review → Approval | Fast iteration, bug fixes |
+
+Presets are fully customizable — edit step names, prompts, add/remove steps and gates.
 
 ### UX
 
@@ -307,7 +329,7 @@ Open an [issue](https://github.com/mstagon/forge-studio/issues/new) with:
 forge-studio/
 ├── src/
 │   ├── main/              # Electron Main Process
-│   │   ├── ipc/           # IPC handlers (49 channels)
+│   │   ├── ipc/           # IPC handlers (51 channels)
 │   │   └── services/      # Business logic (13 services)
 │   ├── renderer/          # React 19 Frontend
 │   │   └── src/
@@ -316,7 +338,7 @@ forge-studio/
 │   │       ├── stores/    # Zustand state
 │   │       └── i18n/      # Translations (EN, KO)
 │   ├── shared/            # Shared types & constants
-│   └── preload/           # contextBridge API (15 modules)
+│   └── preload/           # contextBridge API (17 modules)
 ├── templates/             # Tech stack presets
 ├── e2e/                   # Playwright E2E tests
 └── docs/                  # PRD, architecture, status
@@ -333,6 +355,21 @@ forge-studio/
 | Toggle terminal | `` Cmd+` `` | `` Ctrl+` `` |
 | Toggle sidebar | `Cmd+B` | `Ctrl+B` |
 
+### Sidebar Order
+
+| Shortcut | View |
+|:--------:|------|
+| `Cmd+1` | Dashboard |
+| `Cmd+2` | Planning |
+| `Cmd+3` | Workflow |
+| `Cmd+4` | Agents |
+| `Cmd+5` | CLAUDE.md |
+| `Cmd+6` | Commands |
+| `Cmd+7` | Skills |
+| `Cmd+8` | Hooks |
+| `Cmd+9` | MCP |
+| `Cmd+0` | Knowledge |
+
 ---
 
 ## Roadmap
@@ -343,6 +380,10 @@ forge-studio/
 - [x] 12 views with full i18n (EN/KO)
 - [x] Integrated terminal with RunBar
 - [x] E2E test suite
+- [x] Project-level & feature-level AI team planning
+- [x] Document import and context injection
+- [x] Preset-based workflow pipelines (Dev / Quick)
+- [x] GitHub issue & PR templates
 
 ### v1.1
 - [ ] Workflow drag-and-drop editor

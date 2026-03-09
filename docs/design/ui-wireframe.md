@@ -531,9 +531,9 @@ Light Theme:
 | Command Palette | Cmd+K |
 | Toggle Terminal | Cmd+` |
 | Dashboard | Cmd+1 |
-| Workflow | Cmd+2 |
-| Agent Studio | Cmd+3 |
-| Planning Hub | Cmd+4 |
+| Planning Hub | Cmd+2 |
+| Workflow | Cmd+3 |
+| Agent Studio | Cmd+4 |
 | CLAUDE.md Editor | Cmd+5 |
 | New Agent | Cmd+Shift+A |
 | New Command | Cmd+Shift+C |

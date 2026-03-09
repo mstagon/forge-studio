@@ -2,7 +2,7 @@
 
 > PRD 대비 구현 현황. 사용자 경로(User Story)별 정리.
 >
-> 작성일: 2026-03-09 | 기준: Phase 1~5 + UX 개선 완료 시점
+> 작성일: 2026-03-09 | 최종 수정일: 2026-03-09 | 기준: Phase 1~6 + Planning/Workflow 리디자인 완료 시점
 
 ---
 
@@ -18,7 +18,24 @@ Nice-to-Have █░░░░░░░░░░░░░░░░░░░░   1
 
 **핵심 기능(Must-Have) 96% 구현 완료. 앱의 모든 주요 사용자 경로가 동작하는 상태.**
 
-### 최근 변경사항 (2026-03-08~09)
+### 최근 변경사항 (2026-03-09)
+
+- **Planning 뷰 리디자인**: 프로젝트 기획 모드 + 기능 기획 모드 분리
+  - 프로젝트 AI 팀: Product Strategist → System Architect → Feature Planner
+  - 기능 AI 팀: Product Manager → Tech Architect → Task Decomposer
+  - 탭 기반 UI (문서 / AI 팀) + 모드 탭 (프로젝트 / 기능)
+  - 문서 가져오기 (텍스트/데이터/웹 파일) + 카테고리 선택
+  - 기능 자동 인식 (docs/prd/, docs/specs/, feature-roadmap.md 스캔)
+  - 기존 문서 컨텍스트 자동 주입 (scanExistingDocs → injectExistingDocsContext)
+- **Workflow 뷰 리디자인**: 기능 이름 입력 제거 → 프리셋 파이프라인 셀렉터
+  - 개발 파이프라인: 구현 → 코드리뷰 → 승인 → 테스트 → 문서화
+  - 퀵 파이프라인: 구현 → 리뷰 → 승인
+  - 프리셋 내 단계 커스터마이징 가능 (편집 모드)
+- **사이드바 순서 변경**: 대시보드 → 기획 → 워크플로우 → 에이전트 → ...
+- IPC 채널 추가: DIALOG_OPEN_FILES, FS_COPY_FILE (+2)
+- GitHub Issue/PR 템플릿 추가 (.github/)
+
+### 이전 변경사항 (2026-03-08)
 
 - Timeline 뷰 추가 (git 커밋 이력 + 프로젝트 셋업 진행률)
 - RunBar 컴포넌트 추가 (package.json 스크립트 + Claude 커맨드 동적 표시)
@@ -67,20 +84,30 @@ src/main/services/file-watcher.ts              — chokidar 파일 변경 감지
 
 ## Epic 2. 워크플로우 엔진
 
-> 사용자 경로: Workflow 뷰 → 스텝 편집 → 실행 → 게이트 승인 → 완료
+> 사용자 경로: Workflow 뷰 → 프리셋 선택 → 실행 → 게이트 승인 → 완료
 
 | ID | 스토리 | 상태 | 설명 |
 |----|--------|:----:|------|
-| US-201 | 파이프라인 시각적 보기 | ✅ | 단계별 상태 카드 (pending/running/done/failed/waiting). 실시간 output 스트리밍 |
+| US-201 | 파이프라인 시각적 보기 | ✅ | 프리셋 셀렉터 (Dev/Quick) + 단계별 상태 카드. 실시간 output 스트리밍 |
 | US-202 | 드래그&드롭 커스터마이징 | ⚠️ | Edit Mode로 스텝 추가/삭제/재정렬/프롬프트 편집. **미구현:** 드래그&드롭, React Flow 노드 방식 |
-| US-203 | Claude CLI 자동 순차 실행 | ✅ | 전용 PTY 세션에서 단계별 자동 실행. `{feature}` 플레이스홀더 치환 |
+| US-203 | Claude CLI 자동 순차 실행 | ✅ | 전용 PTY 세션에서 단계별 자동 실행. 프리셋 기반 독립 프롬프트 (기능명 불필요) |
 | US-204 | 사람 승인 게이트 | ✅ | `gate` 타입 스텝 → Approve / Skip 버튼 |
 | US-205 | 실행 이력/타임라인 | ⚠️ | Timeline 뷰에서 git 커밋 이력 표시. **미구현:** 워크플로우 단위 실행 이력 저장/조회 |
+
+### UX 경로 (개선됨)
+
+```
+Workflow 뷰 진입 → 프리셋 드롭다운 (Dev Pipeline / Quick Pipeline)
+  ├── 프리셋 선택 → 단계 목록 표시
+  ├── "파이프라인 편집" → 스텝 추가/삭제/재정렬/프롬프트 편집
+  ├── "실행" → PTY 순차 실행 → 게이트에서 일시정지
+  └── 출력 패널 (단계 클릭 → 우측 출력 스트리밍)
+```
 
 ### 구현 파일
 
 ```
-src/renderer/src/routes/WorkflowView.tsx       — 워크플로우 UI (편집 + 실행 + 출력)
+src/renderer/src/routes/WorkflowView.tsx       — 워크플로우 UI (프리셋 셀렉터 + 편집 + 실행 + 출력)
 src/main/services/workflow-runner.ts           — PTY 기반 워크플로우 실행 엔진
 ```
 
@@ -119,21 +146,35 @@ src/main/services/config-manager.ts            — 에이전트 파일 CRUD
 
 ## Epic 4. 기획 허브
 
-> 사용자 경로: Planning 뷰 → 문서 탐색 or AI Team → Feature 입력 → 자동 기획
+> 사용자 경로: Planning 뷰 → 탭 선택 (문서/AI 팀) → 프로젝트 or 기능 기획 → 자동 기획
 
 | ID | 스토리 | 상태 | 설명 |
 |----|--------|:----:|------|
-| US-401 | 기획문서 import | ⚠️ | docs/ 하위 마크다운 자동 탐색/표시 (prd/specs/planningdocs/architecture). **미구현:** 드래그&드롭, PDF/Notion |
-| US-402 | PRD → 스펙 → 태스크 자동 생성 | ✅ | Agent Team (PM→Architect→Task Decomposer) 순차 실행. docs/prd/, docs/specs/ 자동 생성 |
-| US-403 | 아이디어 → 기획 자동 | ✅ | Feature Name 입력 → AI Team Start → 3 에이전트 순차 문서 생성 |
+| US-401 | 기획문서 import | ✅ | 문서 가져오기 버튼 + 카테고리 셀렉터 (planning/prd/specs/planningdocs/architecture). 텍스트/데이터/웹 파일 지원 |
+| US-402 | PRD → 스펙 → 태스크 자동 생성 | ✅ | Feature Team (PM→Architect→Task Decomposer) 순차 실행. docs/prd/, docs/specs/ 자동 생성. 프로젝트 문서 자동 참조 |
+| US-403 | 아이디어 → 기획 자동 | ✅ | 프로젝트 모드: 전체 비전/아키텍처/로드맵 수립. 기능 모드: 개별 PRD/스펙/태스크 생성 |
 | US-404 | PRD-스펙-태스크 traceability | ❌ | **미구현:** 요구사항 추적 매트릭스 (Should-Have) |
-| US-405 | 에이전트팀 서비스 기획 | ✅ | 3인 팀 자동 실행, 실시간 출력/상태 표시, 완료 시 문서 목록 자동 갱신 |
+| US-405 | 에이전트팀 서비스 기획 | ✅ | 프로젝트 팀 (3인) + 기능 팀 (3인). 기존 문서 스캔 후 컨텍스트 주입. 완료 시 워크플로우 연결 |
+
+### UX 경로 (리디자인됨)
+
+```
+Planning 뷰 진입 → 상단 탭 [문서 / AI 팀]
+  ├── 문서 탭: 카테고리별 문서 목록 + 뷰어 + 가져오기 버튼
+  │   └── 문서 클릭 → 뷰어 표시 (같은 문서 재클릭 → 닫기)
+  └── AI 팀 탭: 모드 탭 [프로젝트 / 기능]
+      ├── 프로젝트 모드: Strategist → Architect → Feature Planner
+      │   └── 완료 → "워크플로우 시작" (primary) / "기능별 기획" (secondary)
+      └── 기능 모드: 기능 드롭다운 + PM → Architect → Decomposer
+          └── 완료 → "워크플로우 시작"
+```
 
 ### 구현 파일
 
 ```
-src/renderer/src/routes/PlanningView.tsx       — 문서 브라우저 + AI Team 패널
-src/main/services/agent-team.ts                — PM→Architect→Decomposer 순차 실행
+src/renderer/src/routes/PlanningView.tsx       — 탭 기반 UI (문서 + AI Team) + 프로젝트/기능 모드 + 문서 가져오기
+src/main/services/agent-team.ts                — 프로젝트 팀 + 기능 팀 + 기존 문서 스캔/주입
+src/main/ipc/register.ts                       — DIALOG_OPEN_FILES + FS_COPY_FILE 핸들러
 ```
 
 ---
@@ -322,7 +363,7 @@ config-manager.ts      — 에이전트/커맨드/스킬/설정/MCP CRUD
 file-watcher.ts        — chokidar 파일 변경 감지
 pty-manager.ts         — node-pty 터미널 세션 관리
 workflow-runner.ts     — 워크플로우 PTY 실행 엔진
-agent-team.ts          — AI 에이전트팀 순차 실행
+agent-team.ts          — AI 에이전트팀 순차 실행 (프로젝트+기능 모드, 기존 문서 스캔/주입)
 knowledge-db.ts        — SQLite 지식 DB (better-sqlite3)
 escalation.ts          — 반복 패턴 → CLAUDE.md 자동 추가
 preset-registry.ts     — 4개 빌트인 프리셋 관리
@@ -335,9 +376,9 @@ preset-exporter.ts     — 프로젝트 → 프리셋 JSON 내보내기
 ```
 WelcomeView.tsx        — 시작 화면 + 최근 프로젝트
 DashboardView.tsx      — 프로젝트 대시보드
-WorkflowView.tsx       — 워크플로우 편집/실행
+WorkflowView.tsx       — 워크플로우 (프리셋 셀렉터 + 편집/실행)
 AgentsView.tsx         — 에이전트 CRUD + 그래프 뷰 + 빈 상태 가이드
-PlanningView.tsx       — 기획 허브 + AI Team
+PlanningView.tsx       — 기획 허브 (탭: 문서/AI팀, 모드: 프로젝트/기능, 문서 가져오기)
 ClaudeMdView.tsx       — CLAUDE.md 비주얼 에디터
 CommandsView.tsx       — 커맨드 빌더 + 빈 상태 가이드
 SkillsView.tsx         — 스킬 빌더 + 빈 상태 가이드
@@ -350,7 +391,7 @@ TimelineView.tsx       — 타임라인 (git 이력 + 셋업 진행률)
 ### 주요 UI 컴포넌트
 
 ```
-components/layout/Sidebar.tsx          — 사이드바 (11개 nav + 닫기 + 축소)
+components/layout/Sidebar.tsx          — 사이드바 (11개 nav + 닫기 + 축소) [순서: Dash→Plan→Work→Agent→...]
 components/layout/StatusBar.tsx        — 하단 상태바 (CLI 상태 + 테마 토글)
 components/terminal/TerminalPanel.tsx  — xterm.js 터미널
 components/terminal/RunBar.tsx         — 동적 스크립트/커맨드 실행 바
@@ -361,12 +402,12 @@ components/agents/AgentGraph.tsx       — React Flow 노드 그래프
 components/wizard/NewProjectWizard.tsx — 프로젝트 생성 위저드
 ```
 
-### IPC 채널 (49개)
+### IPC 채널 (51개)
 
 ```
 Terminal:    5채널  (create, data, resize, dispose, on-data, on-exit)
 Project:     3채널  (open, read-dir, get-recent)
-FileSystem:  4채널  (read, write, changed, start-watching)
+FileSystem:  5채널  (read, write, changed, start-watching, copy-file)
 CLAUDE.md:   2채널  (read, write)
 Agents:      4채널  (list, save, delete, rename)
 Commands:    3채널  (list, save, delete)
@@ -380,6 +421,7 @@ Knowledge:   6채널  (add, search, delete, update, import-lessons, get-escalati
 Team:        4채널  (start, stop, get-state, state, output)
 Git:         2채널  (log, diff-stat)
 App:         2채널  (get-path, open-directory)
+Dialog:      1채널  (open-files)
 ```
 
 ### 프리셋 (4개)

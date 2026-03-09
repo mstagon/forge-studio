@@ -3,7 +3,7 @@
 ## 메타데이터
 - 작성일: 2026-03-06
 - 최종 수정일: 2026-03-09
-- 버전: 1.1
+- 버전: 1.2
 - 상태: Implemented
 - PRD 참조: docs/prd/forge-studio-prd.md
 
@@ -49,7 +49,7 @@
 │  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ │  │
 │  │  │Escalation│ │Agent Team│ │ PTY      │ │  Preset    │ │  │
-│  │  │          │ │          │ │ Manager  │ │  Exporter  │ │  │
+│  │  │          │ │Proj+Feat │ │ Manager  │ │  Exporter  │ │  │
 │  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                              │                                  │
@@ -94,7 +94,7 @@ forge-studio/
 │   ├── main/                          # Electron Main Process
 │   │   ├── index.ts                   # 앱 진입점 (BrowserWindow 생성)
 │   │   ├── ipc/
-│   │   │   └── register.ts            # 모든 IPC 핸들러 통합 등록 (49채널)
+│   │   │   └── register.ts            # 모든 IPC 핸들러 통합 등록 (51채널)
 │   │   └── services/                  # 비즈니스 로직 (13개)
 │   │       ├── project-manager.ts     # 프로젝트 열기/통계 + git log/diff
 │   │       ├── claude-bridge.ts       # Claude Code CLI 설치 확인/버전
@@ -103,7 +103,7 @@ forge-studio/
 │   │       ├── file-watcher.ts        # chokidar 파일 변경 감지
 │   │       ├── pty-manager.ts         # node-pty 터미널 세션 관리
 │   │       ├── workflow-runner.ts     # 워크플로우 PTY 실행 엔진
-│   │       ├── agent-team.ts          # AI 에이전트팀 순차 실행
+│   │       ├── agent-team.ts          # AI 에이전트팀 순차 실행 (프로젝트+기능 모드)
 │   │       ├── knowledge-db.ts        # SQLite 지식 DB (better-sqlite3)
 │   │       ├── escalation.ts          # 반복 패턴 → CLAUDE.md 자동 추가
 │   │       ├── preset-registry.ts     # 4개 빌트인 프리셋 관리
@@ -117,9 +117,9 @@ forge-studio/
 │   │       ├── routes/                # 페이지 뷰 (12개)
 │   │       │   ├── WelcomeView.tsx    # 시작 화면 + 최근 프로젝트
 │   │       │   ├── DashboardView.tsx  # 프로젝트 대시보드 + Quick Actions
-│   │       │   ├── WorkflowView.tsx   # 워크플로우 편집/실행
+│   │       │   ├── WorkflowView.tsx   # 워크플로우 (프리셋 셀렉터 + 편집/실행)
 │   │       │   ├── AgentsView.tsx     # 에이전트 CRUD + 그래프 뷰
-│   │       │   ├── PlanningView.tsx   # 기획 허브 + AI Team
+│   │       │   ├── PlanningView.tsx   # 기획 허브 (탭: 문서/AI팀, 모드: 프로젝트/기능, 문서 가져오기)
 │   │       │   ├── ClaudeMdView.tsx   # CLAUDE.md 비주얼 에디터
 │   │       │   ├── CommandsView.tsx   # 커맨드 빌더
 │   │       │   ├── SkillsView.tsx     # 스킬 빌더
@@ -159,7 +159,7 @@ forge-studio/
 │   │       └── channels.ts            # IPC 채널 이름 상수 (49개)
 │   │
 │   └── preload/
-│       └── index.ts                   # contextBridge (15 모듈 노출)
+│       └── index.ts                   # contextBridge (17 모듈 노출)
 │
 ├── templates/                         # 기술 스택 프리셋 (4개)
 │   ├── _base/                         # 공통 베이스 (에이전트 6 + 커맨드 4)
@@ -556,14 +556,14 @@ Electron Main ↔ Renderer 간 통신은 contextBridge + ipcRenderer.invoke 패�
 
 채널 상수는 `src/shared/constants/channels.ts`에 중앙 정의.
 핸들러는 `src/main/ipc/register.ts`에 통합 등록.
-Preload API는 `src/preload/index.ts`에서 15개 모듈로 노출.
+Preload API는 `src/preload/index.ts`에서 17개 모듈로 노출.
 
 ```
-총 49개 IPC 채널:
+총 51개 IPC 채널:
 
 Terminal (5):   create, data, resize, dispose, on-data/on-exit
 Project (3):    open, read-dir, get-recent
-FileSystem (4): read, write, changed, start-watching
+FileSystem (5): read, write, changed, start-watching, copy-file
 CLAUDE.md (2):  read, write
 Agents (4):     list, save, delete, rename
 Commands (3):   list, save, delete
@@ -577,6 +577,7 @@ Knowledge (6):  add, search, delete, update, import-lessons, get-escalation, app
 Team (4):       start, stop, get-state/state/output
 Git (2):        log, diff-stat
 App (2):        get-path, open-directory
+Dialog (1):     open-files
 ```
 
 ### Preload API 구조 (window.forgeApi)
@@ -585,7 +586,7 @@ App (2):        get-path, open-directory
 window.forgeApi = {
   terminal:  { create, write, resize, dispose, onData, onExit },
   project:   { open, readDir, startWatching, onFileChanged },
-  fs:        { readFile, writeFile },
+  fs:        { readFile, writeFile, copyFile },
   claudeMd:  { read, write },
   agents:    { list, save, delete, rename },
   commands:  { list, save, delete },
@@ -595,10 +596,10 @@ window.forgeApi = {
   presets:   { list, apply, export, import },
   workflow:  { start, approve, skip, stop, getState, onState, onOutput },
   knowledge: { add, search, delete, update, importLessons, getEscalation, applyEscalation },
-  team:      { start, stop, getState, onState, onOutput },
+  team:      { start, stop, getState, onState, onOutput },  // start accepts mode: 'project' | 'feature'
   git:       { log, diffStat },
   claude:    { checkInstalled, getVersion },
-  app:       { getPath, openDirectory },
+  app:       { getPath, openDirectory, openFiles },
 }
 ```
 
@@ -614,9 +615,9 @@ window.forgeApi = {
 ├────────┬───────────────────────────────────────────────────────┤
 │        │                                                       │
 │ ⌘1 Dash│  ┌─────────────────────────────────────────────────┐ │
-│ ⌘2 Work│  │                                                 │ │
-│ ⌘3 Agnt│  │              Main Content Area                  │ │
-│ ⌘4 Plan│  │                                                 │ │
+│ ⌘2 Plan│  │                                                 │ │
+│ ⌘3 Work│  │              Main Content Area                  │ │
+│ ⌘4 Agnt│  │                                                 │ │
 │ ⌘5 MD  │  │  (12 views: Welcome/Dashboard/Workflow/         │ │
 │ ⌘6 Cmds│  │   Agents/Planning/CLAUDE.md/Commands/           │ │
 │ ⌘7 Skil│  │   Skills/Hooks/MCP/Knowledge/Timeline)          │ │
@@ -640,9 +641,9 @@ window.forgeApi = {
 |----|------|:------:|
 | **Welcome** | 시작 화면 + 최근 프로젝트 5개 + Open/New Project | - |
 | **Dashboard** | 프로젝트 개요 (agents/commands/skills/MCP 카운트, git, Quick Actions) | ⌘1 |
-| **Workflow** | 파이프라인 편집/실행 + 게이트 승인 + 출력 스트리밍 | ⌘2 |
-| **Agents** | 에이전트 CRUD + React Flow 그래프 뷰 + 빈 상태 가이드 | ⌘3 |
-| **Planning** | docs/ 문서 브라우저 + AI Team (PM→Architect→Decomposer) | ⌘4 |
+| **Planning** | 탭 기반 (문서/AI 팀). 프로젝트/기능 모드. 문서 가져오기. 기능 자동인식 | ⌘2 |
+| **Workflow** | 프리셋 파이프라인 셀렉터 (Dev/Quick) + 편집 + 게이트 승인 + 출력 스트리밍 | ⌘3 |
+| **Agents** | 에이전트 CRUD + React Flow 그래프 뷰 + 빈 상태 가이드 | ⌘4 |
 | **CLAUDE.md** | 섹션별 비주얼 에디터 (Visual/Raw 토글) | ⌘5 |
 | **Commands** | 커맨드 빌더 CRUD + 빈 상태 가이드 | ⌘6 |
 | **Skills** | 스킬 빌더 CRUD + 빈 상태 가이드 | ⌘7 |
