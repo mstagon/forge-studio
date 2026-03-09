@@ -2,6 +2,8 @@ import type { IPty } from 'node-pty'
 import { platform } from 'os'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../../shared/constants/channels'
+import { loadAllAgents, matchAgentsForStep, buildAgentContext } from './agent-resolver'
+import type { AgentInfo } from './agent-resolver'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pty = require('node-pty')
@@ -32,6 +34,7 @@ export interface WorkflowStepStatus {
 let currentRun: WorkflowRunState | null = null
 let currentPty: IPty | null = null
 let mainWindow: BrowserWindow | null = null
+let cachedAgents: AgentInfo[] = []
 
 export function initWorkflowRunner(win: BrowserWindow): void {
   mainWindow = win
@@ -47,10 +50,13 @@ export function getWorkflowState(): WorkflowRunState | null {
   return currentRun
 }
 
-export function startWorkflow(projectPath: string, steps: WorkflowStepDef[]): WorkflowRunState {
+export async function startWorkflow(projectPath: string, steps: WorkflowStepDef[]): Promise<WorkflowRunState> {
   if (currentRun?.status === 'running') {
     throw new Error('A workflow is already running')
   }
+
+  // Load project agents once at workflow start
+  cachedAgents = await loadAllAgents(projectPath)
 
   currentRun = {
     id: `wf-${Date.now()}`,
@@ -91,8 +97,15 @@ function runNextStep(projectPath: string): void {
   step.status = 'running'
   emit(currentRun)
 
+  // Match relevant agents for this step and inject their context
+  const matched = matchAgentsForStep(step.name, step.command, cachedAgents)
+  const agentContext = buildAgentContext(matched)
+  const fullPrompt = agentContext
+    ? `${agentContext}\n\n---\n\n## Task\n\n${step.command}`
+    : step.command
+
   const shell = platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/zsh'
-  const claudeCmd = `claude --dangerously-skip-permissions -p "${step.command}"; exit $?\n`
+  const claudeCmd = `claude --dangerously-skip-permissions -p "${fullPrompt.replace(/"/g, '\\"')}"; exit $?\n`
 
   // Remove CLAUDECODE to allow nested claude CLI invocations
   const { CLAUDECODE: _, ...cleanEnv } = process.env
