@@ -1,0 +1,282 @@
+# Forge Studio
+
+**AI Development Cockpit** — Design, manage, and orchestrate your Claude Code harness visually.
+
+> Stop editing scattered text files. Build your AI development workflow with a visual desktop app.
+
+<p align="center">
+  <img src="docs/assets/screenshot-dashboard.png" alt="Forge Studio Dashboard" width="800" />
+</p>
+
+---
+
+## Why Forge Studio?
+
+Claude Code is powerful, but setting it up is tedious:
+
+- **CLAUDE.md**, agents, commands, skills, hooks, MCP servers — all separate text files
+- No visual overview of your workflow pipeline
+- Every new project starts from scratch
+- Lessons learned don't transfer between projects
+
+**Forge Studio** wraps Claude Code CLI with a native desktop app that lets you:
+
+- **Visually design** your AI development workflow
+- **GUI-manage** agents, commands, skills, hooks, and MCP servers
+- **Apply presets** for any tech stack in seconds
+- **Track progress** with timeline and knowledge management
+- **Share configurations** via export/import
+
+---
+
+## Features
+
+### Core
+
+| Feature | Description |
+|---------|-------------|
+| **Project Setup** | 3-step wizard with tech stack presets. Generates CLAUDE.md + .claude/ automatically |
+| **Workflow Engine** | Visual pipeline editor with step execution, gate approvals, and output streaming |
+| **Agent Studio** | CRUD agents with React Flow node graph visualization |
+| **CLAUDE.md Editor** | Section-based visual editor + raw markdown mode |
+| **Command & Skill Builder** | GUI forms that auto-manage .claude/commands/ and .claude/skills/ |
+| **Hook Configuration** | Visual settings for SessionStart, PreToolUse, PostToolUse hooks |
+| **MCP Server Manager** | Add/remove MCP servers with quick-add for popular ones |
+| **Planning Hub** | docs/ browser + AI Team (PM → Architect → Task Decomposer) |
+| **Knowledge Base** | SQLite-backed lessons-learned with escalation to CLAUDE.md |
+| **Timeline** | Git commit history + project setup progress tracker |
+| **Integrated Terminal** | xterm.js + node-pty with RunBar for one-click script/command execution |
+| **Command Palette** | `Cmd+K` with 13 actions, keyboard navigation |
+
+### UX
+
+- Dark/Light theme with `Cmd+K` toggle
+- Full keyboard navigation (`Cmd+1-0` for views, `Cmd+B` sidebar, `` Cmd+` `` terminal)
+- i18n: English + Korean
+- macOS native titlebar with traffic light integration
+- Empty state guides for onboarding
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Electron 34+ |
+| Frontend | React 19 + TypeScript 5.x |
+| State | Zustand |
+| Styling | Tailwind CSS 4 |
+| Graph | React Flow v11 |
+| Terminal | xterm.js + node-pty |
+| Database | SQLite (better-sqlite3) |
+| Build | Vite (electron-vite) |
+| i18n | i18next |
+| Test | Playwright (E2E) |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** 22+
+- **Claude Code CLI** installed (`claude` command available)
+
+### Install & Run
+
+```bash
+git clone https://github.com/mstagon/forge-studio.git
+cd forge-studio
+npm install
+npm run dev
+```
+
+### Build
+
+```bash
+npm run build        # Production build
+npm run typecheck    # TypeScript check
+npm run lint         # ESLint
+```
+
+---
+
+## Tech Stack Presets
+
+Presets are the fastest way to set up a new project. Each preset generates a complete CLAUDE.md, agents, commands, and skills tailored for a specific tech stack.
+
+### Built-in Presets
+
+| Preset | Stack | Agents | Commands |
+|--------|-------|:------:|:--------:|
+| `flutter-supabase` | Flutter + Supabase + Riverpod | 8 | 6 |
+| `nextjs-fullstack` | Next.js 15 + TypeScript + Prisma | 8 | 6 |
+| `python-fastapi` | Python + FastAPI + SQLAlchemy | 8 | 6 |
+| `_base` | Stack-agnostic foundation | 6 | 4 |
+
+Every preset includes the **base agents** (Product Planner, Tech Architect, Task Decomposer, Code Reviewer, Security Auditor, Doc Writer) plus stack-specific specialists.
+
+---
+
+## Contributing
+
+We welcome contributions! Here's how you can help:
+
+### 1. Add a Tech Stack Preset (Easiest way to contribute!)
+
+Presets are the most impactful contribution. If you use a tech stack that's not covered, you can add one.
+
+**What a preset provides:**
+- `CLAUDE.md` content tailored for the stack
+- Agents with stack-specific expertise
+- Commands for common workflows
+- Skills with code patterns and conventions
+
+**How to add a preset:**
+
+1. Fork the repo
+2. Look at an existing preset in `src/main/services/preset-registry.ts`
+3. Add your preset following this structure:
+
+```typescript
+{
+  id: 'your-stack',
+  name: 'Your Stack',
+  description: 'Brief description',
+  icon: '🔧',
+  category: 'fullstack', // or 'frontend', 'backend', 'mobile', 'data'
+  agents: [
+    // Base agents are included automatically
+    // Add stack-specific agents:
+    { name: 'your-specialist', content: '# your-specialist\n\n...' }
+  ],
+  commands: [
+    { name: 'your-command', content: '# your-command\n\n...' }
+  ],
+  skills: [
+    { name: 'your-skill', content: '# Your Skill\n\n...' }
+  ],
+  claudeMd: {
+    techStack: 'Your tech stack description',
+    architecture: 'Your architecture description',
+    buildCommands: ['npm run dev', 'npm run build'],
+    codingRules: ['Rule 1', 'Rule 2'],
+    forbiddenPatterns: ['Pattern 1']
+  }
+}
+```
+
+4. Test it by creating a new project with your preset
+5. Submit a PR
+
+**Preset ideas we'd love:**
+- `go-gin` — Go + Gin + GORM
+- `rust-axum` — Rust + Axum + SQLx
+- `react-native-expo` — React Native + Expo
+- `svelte-kit` — SvelteKit + Drizzle
+- `django-rest` — Django + DRF
+- `spring-boot` — Java + Spring Boot
+- `rails` — Ruby on Rails
+- `laravel` — PHP + Laravel
+- `dotnet-minimal` — .NET Minimal API
+- `elixir-phoenix` — Elixir + Phoenix
+
+### 2. Add Translations
+
+Currently supported: English, Korean.
+
+To add a new language:
+
+1. Copy `src/renderer/src/i18n/locales/en.json`
+2. Rename to your locale code (e.g., `ja.json`, `zh.json`, `es.json`)
+3. Translate all values (keys stay the same)
+4. Register it in `src/renderer/src/i18n/index.ts`
+5. Add a language toggle option in `StatusBar.tsx`
+
+### 3. Improve Existing Features
+
+Check the [Issues](https://github.com/mstagon/forge-studio/issues) tab for open tasks. Some areas that need help:
+
+- **Workflow drag-and-drop** — Replace button-based reordering with DnD
+- **MCP server wizard** — GUI to scaffold new MCP servers
+- **Planning document editing** — Edit docs directly in the Planning Hub
+- **Workflow execution history** — Persist and display past runs
+- **More E2E tests** — Expand Playwright coverage
+
+### 4. Report Bugs & Suggest Features
+
+Open an [issue](https://github.com/mstagon/forge-studio/issues/new) with:
+- What you expected vs what happened
+- Steps to reproduce
+- Screenshots if applicable
+
+---
+
+## Project Structure
+
+```
+forge-studio/
+├── src/
+│   ├── main/              # Electron Main Process
+│   │   ├── ipc/           # IPC handlers (49 channels)
+│   │   └── services/      # Business logic (13 services)
+│   ├── renderer/          # React 19 Frontend
+│   │   └── src/
+│   │       ├── routes/    # 12 view components
+│   │       ├── components/# Shared UI components
+│   │       ├── stores/    # Zustand state
+│   │       └── i18n/      # Translations (EN, KO)
+│   ├── shared/            # Shared types & constants
+│   └── preload/           # contextBridge API (15 modules)
+├── templates/             # Tech stack presets
+├── e2e/                   # Playwright E2E tests
+└── docs/                  # PRD, architecture, status
+```
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+K` | Command Palette |
+| `Cmd+1` ~ `Cmd+0` | Switch views (Dashboard → Knowledge) |
+| `` Cmd+` `` | Toggle terminal |
+| `Cmd+B` | Toggle sidebar |
+
+---
+
+## Roadmap
+
+### v1.0 (Current)
+- [x] Project create/open with preset wizard
+- [x] All 10 PRD epics core features implemented
+- [x] 12 views with full i18n (EN/KO)
+- [x] Integrated terminal with RunBar
+- [x] E2E test suite
+
+### v1.1
+- [ ] Workflow drag-and-drop editor
+- [ ] MCP server scaffolding wizard
+- [ ] Workflow execution history persistence
+- [ ] Cross-project knowledge transfer UI
+- [ ] electron-builder packaging (DMG/AppImage)
+
+### v2.0
+- [ ] Community preset marketplace
+- [ ] MCP server playground
+- [ ] Quality metrics dashboard
+- [ ] Team settings sync
+- [ ] Plugin system
+
+---
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<p align="center">
+  Built with Claude Code + Forge Studio
+</p>
