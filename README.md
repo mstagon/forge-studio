@@ -1,7 +1,9 @@
 # Forge Studio
 
 <p align="center">
-  🌎 English | <a href="./README.ko.md">🇰🇷 한국어</a>
+  <b>🌎 Language</b><br><br>
+  🇺🇸 <b>English</b></a> |
+  🇰🇷 <a href="./README.ko.md"><b>한국어</b></a>
 </p>
 
 **AI Development Cockpit** — Design, manage, and orchestrate your Claude Code harness visually.
