@@ -2,8 +2,9 @@
 
 ## 메타데이터
 - 작성일: 2026-03-06
-- 버전: 1.0
-- 상태: Draft
+- 최종 수정일: 2026-03-09
+- 버전: 1.1
+- 상태: Implemented
 - PRD 참조: docs/prd/forge-studio-prd.md
 
 ---
@@ -25,8 +26,11 @@
 │  │  │CLAUDE.md│ │Command & │ │  MCP     │ │  Knowledge   │ │  │
 │  │  │Editor   │ │Skill Bldr│ │ Studio   │ │  Dashboard   │ │  │
 │  │  └─────────┘ └──────────┘ └──────────┘ └──────────────┘ │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌────────────────────────────┐│  │
+│  │  │ Hooks    │ │ Timeline │ │  Command Palette (⌘K)      ││  │
+│  │  └──────────┘ └──────────┘ └────────────────────────────┘│  │
 │  │  ┌──────────────────────────────────────────────────────┐│  │
-│  │  │              Integrated Terminal                      ││  │
+│  │  │  RunBar (scripts + commands) + Terminal (xterm.js)   ││  │
 │  │  └──────────────────────────────────────────────────────┘│  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                              │                                  │
@@ -40,8 +44,12 @@
 │  │  │Manager   │ │Bridge    │ │ Watcher  │ │  Manager   │ │  │
 │  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ │  │
-│  │  │Template  │ │Workflow  │ │ Config   │ │  Plugin    │ │  │
-│  │  │Engine    │ │Runtime   │ │ Store    │ │  System    │ │  │
+│  │  │Preset    │ │Workflow  │ │ Config   │ │  Knowledge │ │  │
+│  │  │Registry  │ │Runner    │ │ Manager  │ │  DB (SQLite)│ │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ │  │
+│  │  │Escalation│ │Agent Team│ │ PTY      │ │  Preset    │ │  │
+│  │  │          │ │          │ │ Manager  │ │  Exporter  │ │  │
 │  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                              │                                  │
@@ -68,128 +76,115 @@
 | 스타일링 | Tailwind CSS 4 + Radix UI | 유틸리티 퍼스트, 접근성 내장 컴포넌트 |
 | 노드 그래프 | React Flow | 에이전트/워크플로우 노드 에디터용 |
 | 터미널 | xterm.js | Electron 내장 터미널 표준 |
-| 마크다운 | MDXEditor 또는 Milkdown | CLAUDE.md 리치 에디터 |
-| 코드 에디터 | Monaco Editor | 에이전트/커맨드 마크다운 편집 |
+| 마크다운 | textarea + 직접 편집 | CLAUDE.md Visual/Raw 에디터 |
+| 국제화 | i18next + react-i18next | 한국어/영어 전환 |
 | 빌드 | Vite + electron-vite | 빠른 HMR, Electron 최적화 |
 | 패키징 | electron-builder | macOS DMG, Windows NSIS, Linux AppImage |
 | 테스트 | Vitest + Playwright | 단위 + E2E 테스트 |
 | 로컬 DB | SQLite (better-sqlite3) | 워크플로우 이력, 지식 DB |
-| IPC 타입 | electron-trpc 또는 typesafe-ipc | Main-Renderer 간 타입 안전 통신 |
+| IPC 타입 | contextBridge + channels.ts 상수 | Main-Renderer 간 타입 안전 통신 |
 
 ---
 
-## 3. 디렉토리 구조
+## 3. 디렉토리 구조 (실제 구현)
 
 ```
 forge-studio/
 ├── src/
 │   ├── main/                          # Electron Main Process
-│   │   ├── index.ts                   # 앱 진입점
-│   │   ├── windows.ts                 # 윈도우 관리
-│   │   ├── ipc/                       # IPC 핸들러
-│   │   │   ├── project.ipc.ts         # 프로젝트 관리 IPC
-│   │   │   ├── claude-cli.ipc.ts      # Claude CLI 브릿지 IPC
-│   │   │   ├── file-system.ipc.ts     # 파일 시스템 IPC
-│   │   │   ├── mcp.ipc.ts            # MCP 관리 IPC
-│   │   │   └── workflow.ipc.ts        # 워크플로우 실행 IPC
-│   │   ├── services/                  # 비즈니스 로직
-│   │   │   ├── project-manager.ts     # 프로젝트 CRUD, 설정 감지
-│   │   │   ├── claude-bridge.ts       # Claude Code CLI 래핑
-│   │   │   ├── file-watcher.ts        # .claude/ 파일 변경 감지
-│   │   │   ├── config-parser.ts       # CLAUDE.md, settings.json 파서
-│   │   │   ├── template-engine.ts     # 기술 스택 프리셋 생성
-│   │   │   ├── mcp-manager.ts         # MCP 서버 관리
-│   │   │   ├── workflow-runtime.ts    # 워크플로우 실행 엔진
-│   │   │   ├── knowledge-db.ts        # lessons-learned SQLite
-│   │   │   └── plugin-system.ts       # 플러그인 로더
-│   │   └── utils/
-│   │       ├── markdown-parser.ts     # 마크다운 ↔ 구조체 변환
-│   │       └── shell.ts               # 안전한 shell 실행
+│   │   ├── index.ts                   # 앱 진입점 (BrowserWindow 생성)
+│   │   ├── ipc/
+│   │   │   └── register.ts            # 모든 IPC 핸들러 통합 등록 (49채널)
+│   │   └── services/                  # 비즈니스 로직 (13개)
+│   │       ├── project-manager.ts     # 프로젝트 열기/통계 + git log/diff
+│   │       ├── claude-bridge.ts       # Claude Code CLI 설치 확인/버전
+│   │       ├── claude-md-parser.ts    # CLAUDE.md 파싱/직렬화
+│   │       ├── config-manager.ts      # 에이전트/커맨드/스킬/설정/MCP CRUD
+│   │       ├── file-watcher.ts        # chokidar 파일 변경 감지
+│   │       ├── pty-manager.ts         # node-pty 터미널 세션 관리
+│   │       ├── workflow-runner.ts     # 워크플로우 PTY 실행 엔진
+│   │       ├── agent-team.ts          # AI 에이전트팀 순차 실행
+│   │       ├── knowledge-db.ts        # SQLite 지식 DB (better-sqlite3)
+│   │       ├── escalation.ts          # 반복 패턴 → CLAUDE.md 자동 추가
+│   │       ├── preset-registry.ts     # 4개 빌트인 프리셋 관리
+│   │       ├── preset-applier.ts      # 프리셋 → 파일 생성
+│   │       └── preset-exporter.ts     # 프로젝트 → 프리셋 JSON 내보내기
 │   │
-│   ├── renderer/                      # Electron Renderer (React)
-│   │   ├── App.tsx
-│   │   ├── main.tsx                   # React 진입점
-│   │   ├── routes/                    # 페이지 라우팅
-│   │   │   ├── dashboard.tsx          # 프로젝트 대시보드
-│   │   │   ├── workflow.tsx           # 워크플로우 엔진 뷰
-│   │   │   ├── agents.tsx             # 에이전트 스튜디오
-│   │   │   ├── planning.tsx           # 기획 허브
-│   │   │   ├── claude-md.tsx          # CLAUDE.md 에디터
-│   │   │   ├── commands.tsx           # 커맨드 빌더
-│   │   │   ├── skills.tsx             # 스킬 빌더
-│   │   │   ├── hooks.tsx              # Hook 설정
-│   │   │   ├── mcp.tsx               # MCP 스튜디오
-│   │   │   └── knowledge.tsx          # 지식 대시보드
-│   │   ├── components/                # 재사용 컴포넌트
-│   │   │   ├── layout/               # 레이아웃 (사이드바, 헤더 등)
-│   │   │   ├── terminal/             # xterm.js 터미널 래퍼
-│   │   │   ├── editor/               # 마크다운/코드 에디터
-│   │   │   ├── node-graph/           # React Flow 노드 에디터
-│   │   │   ├── workflow/             # 워크플로우 UI 컴포넌트
-│   │   │   └── common/               # 버튼, 카드, 모달 등
-│   │   ├── stores/                    # Zustand 상태 관리
-│   │   │   ├── project.store.ts
-│   │   │   ├── workflow.store.ts
-│   │   │   ├── agent.store.ts
-│   │   │   └── ui.store.ts
-│   │   ├── hooks/                     # React 커스텀 훅
-│   │   │   ├── useClaudeCli.ts        # CLI 실행 훅
-│   │   │   ├── useFileWatcher.ts      # 파일 변경 감지 훅
-│   │   │   └── useProject.ts          # 프로젝트 컨텍스트
-│   │   └── styles/
-│   │       └── globals.css            # Tailwind 설정
+│   ├── renderer/                      # Electron Renderer (React 19)
+│   │   └── src/
+│   │       ├── App.tsx                # 메인 레이아웃 + 라우팅 + 키보드 단축키
+│   │       ├── main.tsx               # React 진입점
+│   │       ├── routes/                # 페이지 뷰 (12개)
+│   │       │   ├── WelcomeView.tsx    # 시작 화면 + 최근 프로젝트
+│   │       │   ├── DashboardView.tsx  # 프로젝트 대시보드 + Quick Actions
+│   │       │   ├── WorkflowView.tsx   # 워크플로우 편집/실행
+│   │       │   ├── AgentsView.tsx     # 에이전트 CRUD + 그래프 뷰
+│   │       │   ├── PlanningView.tsx   # 기획 허브 + AI Team
+│   │       │   ├── ClaudeMdView.tsx   # CLAUDE.md 비주얼 에디터
+│   │       │   ├── CommandsView.tsx   # 커맨드 빌더
+│   │       │   ├── SkillsView.tsx     # 스킬 빌더
+│   │       │   ├── HooksView.tsx      # Hook 설정
+│   │       │   ├── McpView.tsx        # MCP 서버 관리
+│   │       │   ├── KnowledgeView.tsx  # 지식 대시보드
+│   │       │   └── TimelineView.tsx   # 타임라인 (git + 셋업 진행률)
+│   │       ├── components/
+│   │       │   ├── layout/
+│   │       │   │   ├── Sidebar.tsx    # 사이드바 (11 nav + 닫기 + 축소)
+│   │       │   │   └── StatusBar.tsx  # 하단 상태바
+│   │       │   ├── terminal/
+│   │       │   │   ├── TerminalPanel.tsx  # xterm.js 터미널
+│   │       │   │   └── RunBar.tsx     # 동적 스크립트/커맨드 실행 바
+│   │       │   ├── agents/
+│   │       │   │   └── AgentGraph.tsx # React Flow 노드 그래프
+│   │       │   ├── wizard/
+│   │       │   │   └── NewProjectWizard.tsx # 프로젝트 생성 위저드
+│   │       │   ├── common/
+│   │       │   │   ├── ToastContainer.tsx   # 토스트 알림
+│   │       │   │   └── ConfirmDialog.tsx    # 확인 다이얼로그
+│   │       │   └── CommandPalette.tsx  # ⌘K 커맨드 팔레트 (13 액션)
+│   │       ├── stores/
+│   │       │   └── app.store.ts       # Zustand 통합 스토어
+│   │       ├── i18n/
+│   │       │   ├── index.ts           # i18next 설정
+│   │       │   └── locales/
+│   │       │       ├── en.json        # 영어 번역
+│   │       │       └── ko.json        # 한국어 번역
+│   │       └── assets/
+│   │           └── index.css          # Tailwind CSS 4 + @theme 변수
 │   │
-│   ├── shared/                        # Main/Renderer 공유
-│   │   ├── types/                     # 공유 타입 정의
-│   │   │   ├── project.types.ts       # 프로젝트 설정 타입
-│   │   │   ├── agent.types.ts         # 에이전트 구조 타입
-│   │   │   ├── workflow.types.ts      # 워크플로우 타입
-│   │   │   ├── command.types.ts       # 커맨드 타입
-│   │   │   ├── skill.types.ts         # 스킬 타입
-│   │   │   ├── mcp.types.ts           # MCP 서버 타입
-│   │   │   ├── claude-md.types.ts     # CLAUDE.md 파싱 타입
-│   │   │   └── ipc.types.ts           # IPC 채널 타입 정의
-│   │   ├── constants/
-│   │   │   └── channels.ts            # IPC 채널 이름 상수
-│   │   └── utils/
-│   │       └── validators.ts          # 공유 유효성 검사
+│   ├── shared/
+│   │   ├── types/
+│   │   │   └── ipc.types.ts           # ForgeAPI 타입 정의
+│   │   └── constants/
+│   │       └── channels.ts            # IPC 채널 이름 상수 (49개)
 │   │
 │   └── preload/
-│       └── index.ts                   # contextBridge 설정
+│       └── index.ts                   # contextBridge (15 모듈 노출)
 │
-├── templates/                         # 기술 스택 프리셋
-│   ├── flutter-supabase/             # Flutter + Supabase 프리셋
-│   │   ├── CLAUDE.md.hbs
-│   │   ├── agents/
-│   │   ├── commands/
-│   │   └── skills/
-│   ├── nextjs-fullstack/             # Next.js 풀스택 프리셋
-│   ├── python-fastapi/               # Python + FastAPI 프리셋
-│   ├── react-native/                 # React Native 프리셋
-│   └── _base/                        # 공통 베이스 (모든 스택 공유)
-│       ├── agents/
-│       │   ├── product-planner.md.hbs
-│       │   ├── tech-architect.md.hbs
-│       │   ├── task-decomposer.md.hbs
-│       │   ├── code-reviewer.md.hbs
-│       │   ├── security-auditor.md.hbs
-│       │   └── doc-writer.md.hbs
-│       └── commands/
-│           ├── plan-feature.md.hbs
-│           ├── implement.md.hbs
-│           ├── review.md.hbs
-│           └── full-cycle.md.hbs
+├── templates/                         # 기술 스택 프리셋 (4개)
+│   ├── _base/                         # 공통 베이스 (에이전트 6 + 커맨드 4)
+│   ├── flutter-supabase/              # Flutter + Supabase
+│   ├── nextjs-fullstack/              # Next.js 풀스택
+│   └── python-fastapi/                # Python + FastAPI
 │
-├── plugins/                           # 플러그인 (향후 확장)
+├── e2e/                               # E2E 테스트 (Playwright)
+│   ├── smoke.test.ts                  # 종합 스모크 테스트
+│   ├── theme.test.ts                  # 테마 전환
+│   ├── timeline-check.test.ts         # 타임라인 뷰
+│   ├── ux-nav-check.test.ts           # UX 네비게이션
+│   └── theme-diag.test.ts            # 테마 진단
+│
 ├── docs/                              # 프로젝트 문서
-├── tests/                             # 테스트
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   ├── prd/forge-studio-prd.md        # PRD
+│   ├── design/system-architecture.md  # 아키텍처 (이 파일)
+│   └── implementation-status.md       # 구현 현황
+│
 ├── electron.vite.config.ts
 ├── package.json
 ├── tsconfig.json
-└── tailwind.config.ts
+├── tsconfig.node.json
+├── tsconfig.web.json
+└── CLAUDE.md
 ```
 
 ---
@@ -555,55 +550,55 @@ CREATE TABLE quality_metrics (
 
 ---
 
-## 6. IPC 설계
+## 6. IPC 설계 (실제 구현)
 
-Electron Main ↔ Renderer 간 통신은 타입 안전한 IPC를 사용.
+Electron Main ↔ Renderer 간 통신은 contextBridge + ipcRenderer.invoke 패턴 사용.
+
+채널 상수는 `src/shared/constants/channels.ts`에 중앙 정의.
+핸들러는 `src/main/ipc/register.ts`에 통합 등록.
+Preload API는 `src/preload/index.ts`에서 15개 모듈로 노출.
+
+```
+총 49개 IPC 채널:
+
+Terminal (5):   create, data, resize, dispose, on-data/on-exit
+Project (3):    open, read-dir, get-recent
+FileSystem (4): read, write, changed, start-watching
+CLAUDE.md (2):  read, write
+Agents (4):     list, save, delete, rename
+Commands (3):   list, save, delete
+Skills (3):     list, save, delete
+Settings (2):   read, write
+MCP (3):        list, add, remove
+Claude CLI (2): check-installed, get-version
+Presets (4):    list, apply, export, import
+Workflow (5):   start, approve, skip, stop, get-state/state/output
+Knowledge (6):  add, search, delete, update, import-lessons, get-escalation, apply-escalation
+Team (4):       start, stop, get-state/state/output
+Git (2):        log, diff-stat
+App (2):        get-path, open-directory
+```
+
+### Preload API 구조 (window.forgeApi)
 
 ```typescript
-// src/shared/types/ipc.types.ts
-
-// 채널 정의 (타입 안전)
-interface IpcChannels {
-  // 프로젝트
-  'project:list': () => ForgeProject[];
-  'project:open': (path: string) => ForgeProject;
-  'project:create': (config: CreateProjectConfig) => ForgeProject;
-
-  // Claude CLI
-  'claude:start-session': (config: ClaudeBridgeConfig) => string; // session ID
-  'claude:send': (sessionId: string, input: string) => void;
-  'claude:kill': (sessionId: string) => void;
-
-  // 파일 시스템 (양방향 동기화)
-  'fs:read-claude-md': (projectPath: string) => ClaudeMdConfig;
-  'fs:write-claude-md': (projectPath: string, config: ClaudeMdConfig) => void;
-  'fs:list-agents': (projectPath: string) => Agent[];
-  'fs:save-agent': (projectPath: string, agent: Agent) => void;
-  'fs:delete-agent': (projectPath: string, name: string) => void;
-  // ... commands, skills, hooks 동일 패턴
-
-  // MCP
-  'mcp:list': () => McpServer[];
-  'mcp:add': (config: McpServerConfig) => void;
-  'mcp:remove': (name: string) => void;
-  'mcp:status': (name: string) => McpServer;
-
-  // 워크플로우
-  'workflow:execute': (workflow: WorkflowConfig, vars: Record<string, string>) => string;
-  'workflow:approve': (executionId: string, stepId: string) => void;
-  'workflow:history': (projectId: string) => WorkflowExecution[];
-
-  // 지식
-  'knowledge:lessons': (projectId?: string) => Lesson[];
-  'knowledge:metrics': (projectId: string) => QualityMetric[];
-}
-
-// Renderer → Main 이벤트 (단방향)
-interface IpcEvents {
-  'claude:output': (sessionId: string, output: ClaudeOutput) => void;
-  'fs:changed': (event: FileChangeEvent) => void;
-  'workflow:step-update': (execution: WorkflowStepExecution) => void;
-  'mcp:status-change': (name: string, status: string) => void;
+window.forgeApi = {
+  terminal:  { create, write, resize, dispose, onData, onExit },
+  project:   { open, readDir, startWatching, onFileChanged },
+  fs:        { readFile, writeFile },
+  claudeMd:  { read, write },
+  agents:    { list, save, delete, rename },
+  commands:  { list, save, delete },
+  skills:    { list, save, delete },
+  settings:  { read, write },
+  mcp:       { list, add, remove },
+  presets:   { list, apply, export, import },
+  workflow:  { start, approve, skip, stop, getState, onState, onOutput },
+  knowledge: { add, search, delete, update, importLessons, getEscalation, applyEscalation },
+  team:      { start, stop, getState, onState, onOutput },
+  git:       { log, diffStat },
+  claude:    { checkInstalled, getVersion },
+  app:       { getPath, openDirectory },
 }
 ```
 
@@ -611,50 +606,50 @@ interface IpcEvents {
 
 ## 7. UI 구조
 
-### 7.1 메인 레이아웃
+### 7.1 메인 레이아웃 (실제 구현)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  [< >] Forge Studio    project-name    [🔍] [⚙️] [👤]        │
+│ ● ● ●  [78px]  project-name  [X close]       (38px titlebar)  │
 ├────────┬───────────────────────────────────────────────────────┤
 │        │                                                       │
-│  📊    │  ┌─────────────────────────────────────────────────┐ │
-│ Dash   │  │                                                 │ │
-│        │  │              Main Content Area                  │ │
-│  🔄    │  │                                                 │ │
-│ Work   │  │  (Dashboard / Workflow / Agent Studio /         │ │
-│ flow   │  │   Planning Hub / CLAUDE.md Editor /             │ │
-│        │  │   Command Builder / MCP Studio / ...)           │ │
-│  🤖    │  │                                                 │ │
-│ Agent  │  │                                                 │ │
-│        │  │                                                 │ │
-│  📋    │  │                                                 │ │
-│ Plan   │  ├─────────────────────────────────────────────────┤ │
-│        │  │                                                 │ │
-│  📝    │  │         Integrated Terminal Panel               │ │
-│ Edit   │  │         (xterm.js - Claude Code CLI)            │ │
-│        │  │                                                 │ │
-│  🔧    │  └─────────────────────────────────────────────────┘ │
-│ MCP    │                                                       │
-│        │                                                       │
-│  📚    │                                                       │
-│ Know   │                                                       │
-│        │                                                       │
+│ ⌘1 Dash│  ┌─────────────────────────────────────────────────┐ │
+│ ⌘2 Work│  │                                                 │ │
+│ ⌘3 Agnt│  │              Main Content Area                  │ │
+│ ⌘4 Plan│  │                                                 │ │
+│ ⌘5 MD  │  │  (12 views: Welcome/Dashboard/Workflow/         │ │
+│ ⌘6 Cmds│  │   Agents/Planning/CLAUDE.md/Commands/           │ │
+│ ⌘7 Skil│  │   Skills/Hooks/MCP/Knowledge/Timeline)          │ │
+│ ⌘8 Hook│  │                                                 │ │
+│ ⌘9 MCP │  ├─────────────────────────────────────────────────┤ │
+│ ⌘0 Know│  │  RunBar: [dev] [build] [test] | [claude] [/cmd]│ │
+│ ───────│  ├─────────────────────────────────────────────────┤ │
+│   Time │  │                                                 │ │
+│ ───────│  │         Integrated Terminal (xterm.js)           │ │
+│  Close │  │         Drag-resize. ⌘` toggle.                 │ │
+│  [<>]  │  │                                                 │ │
+│        │  └─────────────────────────────────────────────────┘ │
 ├────────┴───────────────────────────────────────────────────────┤
-│  Status: ● Claude CLI Connected  | Project: my-app | Branch:  │
+│  Claude CLI v1.x  |  ⌘K Command Palette  |  🌙/☀ Theme      │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 주요 화면
+### 7.2 주요 화면 (12개 뷰)
 
-**Dashboard**: 프로젝트 개요, 최근 활동, 빠른 액션 버튼
-**Workflow**: React Flow 기반 파이프라인 뷰, 실행 상태, 이력
-**Agent Studio**: 에이전트 목록 (카드뷰), 편집 폼, 노드 그래프
-**Planning Hub**: 기획문서 목록, PRD/스펙/태스크 뷰, traceability 매트릭스
-**CLAUDE.md Editor**: 섹션별 탭, 리치 에디터, 실시간 프리뷰
-**Command Builder**: 커맨드 목록, 폼 에디터, 테스트 실행
-**MCP Studio**: 서버 목록, 상태 대시보드, 도구 탐색기
-**Knowledge**: lessons-learned 목록, 반복 패턴 차트, 크로스 프로젝트 뷰
+| 뷰 | 설명 | 단축키 |
+|----|------|:------:|
+| **Welcome** | 시작 화면 + 최근 프로젝트 5개 + Open/New Project | - |
+| **Dashboard** | 프로젝트 개요 (agents/commands/skills/MCP 카운트, git, Quick Actions) | ⌘1 |
+| **Workflow** | 파이프라인 편집/실행 + 게이트 승인 + 출력 스트리밍 | ⌘2 |
+| **Agents** | 에이전트 CRUD + React Flow 그래프 뷰 + 빈 상태 가이드 | ⌘3 |
+| **Planning** | docs/ 문서 브라우저 + AI Team (PM→Architect→Decomposer) | ⌘4 |
+| **CLAUDE.md** | 섹션별 비주얼 에디터 (Visual/Raw 토글) | ⌘5 |
+| **Commands** | 커맨드 빌더 CRUD + 빈 상태 가이드 | ⌘6 |
+| **Skills** | 스킬 빌더 CRUD + 빈 상태 가이드 | ⌘7 |
+| **Hooks** | SessionStart/PreToolUse/PostToolUse 설정 | ⌘8 |
+| **MCP** | 서버 목록 + Quick-add + 추가 폼 | ⌘9 |
+| **Knowledge** | SQLite 지식 DB + 검색/필터 + Escalation → CLAUDE.md | ⌘0 |
+| **Timeline** | git 커밋 이력 (날짜 그룹) + 프로젝트 셋업 진행률 | - |
 
 ---
 
@@ -760,57 +755,66 @@ GUI에서 수정한 경우:
 
 ---
 
-## 10. 개발 페이즈
+## 10. 개발 페이즈 (실제 진행 현황)
 
-### Phase 1: Foundation (MVP Core)
-- Electron + React + Vite 보일러플레이트
+### Phase 1: Foundation (MVP Core) ✅ 완료
+- Electron 34 + React 19 + Vite (electron-vite) 보일러플레이트
 - 메인 레이아웃 (사이드바 + 콘텐츠 + 터미널)
-- xterm.js 내장 터미널 (Claude Code CLI 직접 연결)
+- xterm.js + node-pty 내장 터미널
 - 프로젝트 열기/생성
-- CLAUDE.md 파서 + 비주얼 에디터 (기본)
+- CLAUDE.md 파서 + 비주얼 에디터
+- Zustand 상태관리 + Tailwind CSS 4 테마
 
-### Phase 2: Config Management
-- 에이전트 CRUD GUI
+### Phase 2: Config Management ✅ 완료
+- 에이전트 CRUD GUI + React Flow 그래프 뷰
 - 커맨드 CRUD GUI
 - 스킬 CRUD GUI
-- Hook 설정 GUI
+- Hook 설정 GUI (3 타입)
 - settings.json 비주얼 에디터
-- 파일 양방향 동기화 (File Watcher)
+- chokidar 파일 양방향 동기화
 
-### Phase 3: Workflow & Planning
-- 워크플로우 파이프라인 시각화 (React Flow)
-- 워크플로우 실행 엔진
-- 기획 허브 (문서 import, PRD/스펙 관리)
-- 에이전트팀 서비스 기획 기능
+### Phase 3: Workflow & Planning ✅ 완료
+- 워크플로우 파이프라인 시각화 + 편집 모드
+- PTY 기반 워크플로우 실행 엔진 + 게이트 승인
+- 기획 허브 (docs/ 문서 브라우저)
+- AI 에이전트팀 서비스 기획 (PM→Architect→Decomposer)
 
-### Phase 4: MCP & Intelligence
-- MCP 서버 관리 GUI
-- MCP 서버 스캐폴딩 위저드
-- Knowledge DB (lessons-learned 크로스 프로젝트)
-- 자기개선 루프 GUI
-- 품질 메트릭 대시보드
+### Phase 4: MCP & Intelligence ✅ 완료
+- MCP 서버 관리 GUI + Quick-add
+- Knowledge DB (SQLite better-sqlite3)
+- 자기개선 루프 GUI (Escalation → CLAUDE.md)
+- ~~MCP 서버 스캐폴딩 위저드~~ (미구현)
+- ~~품질 메트릭 대시보드~~ (미구현)
 
-### Phase 5: Templates & Community
-- 기술 스택 프리셋 시스템
-- flutter-forge 프리셋 마이그레이션
-- 템플릿 export/import
-- 커뮤니티 공유 준비
+### Phase 5: Templates & Community ✅ 완료
+- 기술 스택 프리셋 시스템 (4개: base, flutter, nextjs, python)
+- 프리셋 export/import (JSON)
+- ~~커뮤니티 마켓플레이스~~ (미구현)
+
+### Phase 6: UX Polish ✅ 완료 (추가)
+- i18n 국제화 (EN/KO)
+- macOS 타이틀바 + 트래픽 라이트 처리
+- 빈 상태 가이드 (Agents/Commands/Skills)
+- 선택 해제 + 프로젝트 닫기 UX 경로
+- RunBar (동적 스크립트/커맨드)
+- Timeline 뷰 (git 이력 + 셋업 진행률)
+- Command Palette (⌘K, 13개 액션)
+- E2E 테스트 (Playwright, 5개 파일)
 
 ---
 
-## 11. 태스크 분해 (Phase 1 상세)
+## 11. 태스크 완료 현황
 
-| ID | 태스크 | 의존성 | 담당 영역 | 완료 기준 |
-|----|--------|--------|----------|---------|
-| T-001 | Electron + React + Vite 프로젝트 초기화 | 없음 | 인프라 | electron-vite로 빌드/실행 가능 |
-| T-002 | Tailwind CSS + Radix UI 셋업 | T-001 | 스타일 | 다크/라이트 테마 전환 동작 |
-| T-003 | 메인 레이아웃 (사이드바 + 콘텐츠 + 터미널 패널) | T-002 | UI | 리사이즈 가능한 3영역 레이아웃 |
-| T-004 | IPC 타입 시스템 + preload 설정 | T-001 | 인프라 | 타입 안전한 IPC 통신 동작 |
-| T-005 | xterm.js 터미널 통합 | T-003, T-004 | 터미널 | 앱 내에서 Claude Code CLI 실행 가능 |
-| T-006 | Claude CLI Bridge (node-pty) | T-004 | 코어 | CLI child process 관리, 입출력 스트리밍 |
-| T-007 | 프로젝트 매니저 (열기/생성) | T-004 | 코어 | 폴더 선택 → 프로젝트 로드 동작 |
-| T-008 | CLAUDE.md 파서 | T-007 | 코어 | 마크다운 → 구조체 → 마크다운 라운드트립 |
-| T-009 | CLAUDE.md 비주얼 에디터 (기본) | T-003, T-008 | UI | 섹션별 편집 + 실시간 프리뷰 |
-| T-010 | File Watcher (chokidar) | T-007 | 코어 | .claude/ 변경 감지 → IPC 이벤트 |
-| T-011 | Dashboard 페이지 | T-003, T-007 | UI | 프로젝트 개요, 빠른 액션 |
-| T-012 | Zustand 스토어 설정 | T-004 | 상태관리 | 프로젝트, UI 상태 관리 |
+모든 Phase 1~6 태스크 완료. 상세한 구현 현황은 `docs/implementation-status.md` 참조.
+
+### 핵심 완료 항목
+- ✅ Electron 34 + React 19 + Vite (electron-vite) 인프라
+- ✅ Tailwind CSS 4 + @theme CSS 변수 테마 시스템
+- ✅ 메인 레이아웃 (타이틀바 + 사이드바 + 콘텐츠 + RunBar + 터미널)
+- ✅ IPC 타입 시스템 (49채널) + contextBridge preload (15 모듈)
+- ✅ xterm.js + node-pty 터미널 통합
+- ✅ Zustand 통합 스토어 (12 뷰 상태)
+- ✅ 12개 Renderer 뷰 + 13개 Main 서비스
+- ✅ i18next 국제화 (EN/KO)
+- ✅ Playwright E2E 테스트 (5개 파일)
+- ✅ 4개 기술 스택 프리셋 + export/import
