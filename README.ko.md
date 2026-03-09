@@ -1,7 +1,9 @@
 # Forge Studio
 
 <p align="center">
-  🇰🇷 한국어 | <a href="./README.md">🌎 English</a>
+  <b>🌎 Language</b><br><br>
+  🇺🇸 <a href="./README.md"><b>English</b></a> |
+  🇰🇷 <b>한국어</b></a>
 </p>
 
 **AI 개발 콕핏(AI Development Cockpit)** — Claude Code 작업 환경을 시각적으로 설계하고 관리할 수 있는 데스크톱 애플리케이션
