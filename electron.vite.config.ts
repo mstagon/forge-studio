@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
-        external: ['node-pty']
+        external: ['node-pty', 'better-sqlite3']
       }
     }
   },

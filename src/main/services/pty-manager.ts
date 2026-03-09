@@ -18,13 +18,16 @@ export function createPtySession(cwd: string): string {
   const id = `pty-${++nextId}`
   const shell = platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/zsh'
 
+  // Remove CLAUDECODE to allow nested claude CLI invocations
+  const { CLAUDECODE: _, ...cleanEnv } = process.env
+
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,
     cwd,
     env: {
-      ...process.env,
+      ...cleanEnv,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor'
     }
@@ -74,8 +77,8 @@ export function disposePty(id: string): void {
 }
 
 export function disposeAll(): void {
-  for (const session of sessions.values()) {
+  sessions.forEach((session) => {
     session.process.kill()
-  }
+  })
   sessions.clear()
 }

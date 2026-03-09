@@ -4,14 +4,35 @@ import { join } from 'path'
 import { IPC } from '../../shared/constants/channels'
 import { createPtySession, writeToPty, resizePty, disposePty, onPtyData, onPtyExit, disposeAll } from '../services/pty-manager'
 import { isClaudeInstalled, getClaudeVersion } from '../services/claude-bridge'
-import { openProject, getProjectStats, listDirectory } from '../services/project-manager'
+import { openProject, getProjectStats, listDirectory, getGitLog, getGitDiffStat } from '../services/project-manager'
 import { parseClaudeMd, serializeClaudeMd } from '../services/claude-md-parser'
-import { listAgents, saveAgent, deleteAgent, renameAgent, listCommands, saveCommand, deleteCommand, listSkills, saveSkill, deleteSkill, readSettings, writeSettings, listMcpServers } from '../services/config-manager'
+import { listAgents, saveAgent, deleteAgent, renameAgent, listCommands, saveCommand, deleteCommand, listSkills, saveSkill, deleteSkill, readSettings, writeSettings, listMcpServers, addMcpServer, removeMcpServer } from '../services/config-manager'
 import { startWatching } from '../services/file-watcher'
+import { listPresets, getPreset, addUserPreset } from '../services/preset-registry'
+import { applyPreset } from '../services/preset-applier'
+import { exportProjectAsPreset } from '../services/preset-exporter'
+import { initWorkflowRunner, startWorkflow, approveGate, skipStep, stopWorkflow, getWorkflowState } from '../services/workflow-runner'
+import { addKnowledge, searchKnowledge, deleteKnowledge, updateKnowledge, importLessonsFromFile, closeDb } from '../services/knowledge-db'
+import { getEscalationReport, applyEscalations } from '../services/escalation'
+import { initAgentTeam, startTeam, stopTeam, getTeamState } from '../services/agent-team'
+import type { WorkflowStepDef } from '../services/workflow-runner'
+import type { KnowledgeEntry } from '../services/knowledge-db'
 import type { AgentConfig, CommandConfig, SkillConfig, SettingsConfig } from '../../shared/types/agent.types'
 import type { ClaudeMdConfig } from '../../shared/types/claude-md.types'
 
+let _mainWindow: BrowserWindow
+
+export function updateMainWindow(win: BrowserWindow): void {
+  _mainWindow = win
+  initWorkflowRunner(win)
+  initAgentTeam(win)
+}
+
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+  _mainWindow = mainWindow
+  initWorkflowRunner(mainWindow)
+  initAgentTeam(mainWindow)
+
   // ── Terminal / PTY ──
 
   ipcMain.handle(IPC.TERMINAL_CREATE, async (_event, cwd: string) => {
@@ -93,11 +114,84 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // ── MCP ──
 
   ipcMain.handle(IPC.MCP_LIST, async () => listMcpServers())
+  ipcMain.handle(IPC.MCP_ADD, async (_event, name: string, command: string, args: string[], env?: Record<string, string>) => {
+    await addMcpServer(name, command, args, env)
+  })
+  ipcMain.handle(IPC.MCP_REMOVE, async (_event, name: string) => {
+    await removeMcpServer(name)
+  })
 
   // ── Claude CLI ──
 
   ipcMain.handle(IPC.CLAUDE_CHECK_INSTALLED, () => isClaudeInstalled())
   ipcMain.handle(IPC.CLAUDE_GET_VERSION, () => getClaudeVersion())
+
+  // ── Presets ──
+
+  ipcMain.handle(IPC.PRESETS_LIST, () => listPresets())
+  ipcMain.handle(IPC.PRESETS_APPLY, async (_event, projectPath: string, presetId: string) => {
+    const preset = getPreset(presetId)
+    if (!preset) throw new Error(`Preset not found: ${presetId}`)
+    await applyPreset(projectPath, preset)
+    return true
+  })
+  ipcMain.handle(IPC.PRESETS_EXPORT, async (_event, projectPath: string, meta: { name: string; description: string; icon: string; category: string }) => {
+    return exportProjectAsPreset(projectPath, meta as Parameters<typeof exportProjectAsPreset>[1])
+  })
+  ipcMain.handle(IPC.PRESETS_IMPORT, async (_event, presetJson: string) => {
+    const preset = JSON.parse(presetJson)
+    addUserPreset(preset)
+    return true
+  })
+
+  // ── Workflow ──
+
+  ipcMain.handle(IPC.WORKFLOW_START, async (_event, projectPath: string, steps: WorkflowStepDef[]) => {
+    return startWorkflow(projectPath, steps)
+  })
+  ipcMain.handle(IPC.WORKFLOW_APPROVE, async (_event, projectPath: string) => approveGate(projectPath))
+  ipcMain.handle(IPC.WORKFLOW_SKIP, async (_event, projectPath: string) => skipStep(projectPath))
+  ipcMain.handle(IPC.WORKFLOW_STOP, async () => stopWorkflow())
+  ipcMain.handle(IPC.WORKFLOW_GET_STATE, async () => getWorkflowState())
+
+  // ── Knowledge DB ──
+
+  ipcMain.handle(IPC.KNOWLEDGE_ADD, async (_event, entry: { projectPath: string; category: string; title: string; content: string; tags: string[] }) => {
+    return addKnowledge(entry as Parameters<typeof addKnowledge>[0])
+  })
+  ipcMain.handle(IPC.KNOWLEDGE_SEARCH, async (_event, query: { projectPath?: string; category?: string; search?: string; limit?: number; offset?: number }) => {
+    return searchKnowledge(query as Parameters<typeof searchKnowledge>[0])
+  })
+  ipcMain.handle(IPC.KNOWLEDGE_DELETE, async (_event, id: number) => deleteKnowledge(id))
+  ipcMain.handle(IPC.KNOWLEDGE_UPDATE, async (_event, id: number, updates: { title?: string; content?: string; tags?: string[]; category?: string }) => {
+    updateKnowledge(id, updates)
+  })
+  ipcMain.handle(IPC.KNOWLEDGE_IMPORT_LESSONS, async (_event, projectPath: string, content: string) => {
+    return importLessonsFromFile(projectPath, content)
+  })
+  ipcMain.handle(IPC.KNOWLEDGE_GET_ESCALATION, async (_event, projectPath: string) => {
+    return getEscalationReport(projectPath)
+  })
+  ipcMain.handle(IPC.KNOWLEDGE_APPLY_ESCALATION, async (_event, projectPath: string, entries: KnowledgeEntry[]) => {
+    return applyEscalations(projectPath, entries)
+  })
+
+  // ── Agent Team ──
+
+  ipcMain.handle(IPC.TEAM_START, async (_event, projectPath: string, featureName: string) => {
+    return startTeam(projectPath, featureName)
+  })
+  ipcMain.handle(IPC.TEAM_STOP, async () => stopTeam())
+  ipcMain.handle(IPC.TEAM_GET_STATE, async () => getTeamState())
+
+  // ── Git ──
+
+  ipcMain.handle(IPC.GIT_LOG, async (_event, projectPath: string, count?: number) => {
+    return getGitLog(projectPath, count)
+  })
+  ipcMain.handle(IPC.GIT_DIFF_STAT, async (_event, projectPath: string) => {
+    return getGitDiffStat(projectPath)
+  })
 
   // ── App / Dialog ──
 
@@ -107,5 +201,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return result.canceled ? null : result.filePaths[0]
   })
 
-  app.on('before-quit', () => disposeAll())
+  app.on('before-quit', () => {
+    disposeAll()
+    closeDb()
+  })
 }

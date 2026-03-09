@@ -10,12 +10,12 @@ const api = {
     onData: (callback: (id: string, data: string) => void) => {
       const handler = (_e: Electron.IpcRendererEvent, id: string, data: string): void => callback(id, data)
       ipcRenderer.on(IPC.TERMINAL_ON_DATA, handler)
-      return () => ipcRenderer.removeListener(IPC.TERMINAL_ON_DATA, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.TERMINAL_ON_DATA, handler) }
     },
     onExit: (callback: (id: string, exitCode: number) => void) => {
       const handler = (_e: Electron.IpcRendererEvent, id: string, exitCode: number): void => callback(id, exitCode)
       ipcRenderer.on(IPC.TERMINAL_ON_EXIT, handler)
-      return () => ipcRenderer.removeListener(IPC.TERMINAL_ON_EXIT, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.TERMINAL_ON_EXIT, handler) }
     }
   },
 
@@ -26,7 +26,7 @@ const api = {
     onFileChanged: (callback: (event: { type: string; path: string }) => void) => {
       const handler = (_e: Electron.IpcRendererEvent, event: { type: string; path: string }): void => callback(event)
       ipcRenderer.on(IPC.FS_FILE_CHANGED, handler)
-      return () => ipcRenderer.removeListener(IPC.FS_FILE_CHANGED, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.FS_FILE_CHANGED, handler) }
     }
   },
 
@@ -65,7 +65,65 @@ const api = {
   },
 
   mcp: {
-    list: () => ipcRenderer.invoke(IPC.MCP_LIST)
+    list: () => ipcRenderer.invoke(IPC.MCP_LIST),
+    add: (name: string, command: string, args: string[], env?: Record<string, string>) => ipcRenderer.invoke(IPC.MCP_ADD, name, command, args, env),
+    remove: (name: string) => ipcRenderer.invoke(IPC.MCP_REMOVE, name)
+  },
+
+  presets: {
+    list: () => ipcRenderer.invoke(IPC.PRESETS_LIST),
+    apply: (projectPath: string, presetId: string): Promise<boolean> => ipcRenderer.invoke(IPC.PRESETS_APPLY, projectPath, presetId),
+    export: (projectPath: string, meta: { name: string; description: string; icon: string; category: string }) => ipcRenderer.invoke(IPC.PRESETS_EXPORT, projectPath, meta),
+    import: (presetJson: string): Promise<boolean> => ipcRenderer.invoke(IPC.PRESETS_IMPORT, presetJson)
+  },
+
+  workflow: {
+    start: (projectPath: string, steps: unknown[]) => ipcRenderer.invoke(IPC.WORKFLOW_START, projectPath, steps),
+    approve: (projectPath: string) => ipcRenderer.invoke(IPC.WORKFLOW_APPROVE, projectPath),
+    skip: (projectPath: string) => ipcRenderer.invoke(IPC.WORKFLOW_SKIP, projectPath),
+    stop: () => ipcRenderer.invoke(IPC.WORKFLOW_STOP),
+    getState: () => ipcRenderer.invoke(IPC.WORKFLOW_GET_STATE),
+    onState: (callback: (state: unknown) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, state: unknown): void => callback(state)
+      ipcRenderer.on(IPC.WORKFLOW_STATE, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.WORKFLOW_STATE, handler) }
+    },
+    onOutput: (callback: (workflowId: string, stepId: string, data: string) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, wfId: string, stepId: string, data: string): void => callback(wfId, stepId, data)
+      ipcRenderer.on(IPC.WORKFLOW_OUTPUT, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.WORKFLOW_OUTPUT, handler) }
+    }
+  },
+
+  knowledge: {
+    add: (entry: { projectPath: string; category: string; title: string; content: string; tags: string[] }) => ipcRenderer.invoke(IPC.KNOWLEDGE_ADD, entry),
+    search: (query: { projectPath?: string; category?: string; search?: string; limit?: number; offset?: number }) => ipcRenderer.invoke(IPC.KNOWLEDGE_SEARCH, query),
+    delete: (id: number) => ipcRenderer.invoke(IPC.KNOWLEDGE_DELETE, id),
+    update: (id: number, updates: { title?: string; content?: string; tags?: string[]; category?: string }) => ipcRenderer.invoke(IPC.KNOWLEDGE_UPDATE, id, updates),
+    importLessons: (projectPath: string, content: string) => ipcRenderer.invoke(IPC.KNOWLEDGE_IMPORT_LESSONS, projectPath, content),
+    getEscalation: (projectPath: string) => ipcRenderer.invoke(IPC.KNOWLEDGE_GET_ESCALATION, projectPath),
+    applyEscalation: (projectPath: string, entries: unknown[]) => ipcRenderer.invoke(IPC.KNOWLEDGE_APPLY_ESCALATION, projectPath, entries)
+  },
+
+  team: {
+    start: (projectPath: string, featureName: string) => ipcRenderer.invoke(IPC.TEAM_START, projectPath, featureName),
+    stop: () => ipcRenderer.invoke(IPC.TEAM_STOP),
+    getState: () => ipcRenderer.invoke(IPC.TEAM_GET_STATE),
+    onState: (callback: (state: unknown) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, state: unknown): void => callback(state)
+      ipcRenderer.on(IPC.TEAM_STATE, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.TEAM_STATE, handler) }
+    },
+    onOutput: (callback: (teamId: string, role: string, data: string) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, tId: string, role: string, data: string): void => callback(tId, role, data)
+      ipcRenderer.on(IPC.TEAM_OUTPUT, handler)
+      return (): void => { ipcRenderer.removeListener(IPC.TEAM_OUTPUT, handler) }
+    }
+  },
+
+  git: {
+    log: (projectPath: string, count?: number) => ipcRenderer.invoke(IPC.GIT_LOG, projectPath, count),
+    diffStat: (projectPath: string): Promise<string> => ipcRenderer.invoke(IPC.GIT_DIFF_STAT, projectPath)
   },
 
   claude: {

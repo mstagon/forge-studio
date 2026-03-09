@@ -12,7 +12,7 @@ export interface ProjectStats {
   agentCount: number
   commandCount: number
   skillCount: number
-  hasMcpServers: boolean
+  mcpServerCount: number
   branch?: string
   lastCommit?: string
 }

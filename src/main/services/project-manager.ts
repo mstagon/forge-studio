@@ -53,11 +53,21 @@ export async function getProjectStats(projectPath: string): Promise<ProjectStats
     /* not a git repo */
   }
 
+  let mcpServerCount = 0
+  try {
+    const home = process.env.HOME || ''
+    const raw = await readFile(join(home, '.claude.json'), 'utf-8')
+    const config = JSON.parse(raw)
+    mcpServerCount = Object.keys(config.mcpServers || {}).length
+  } catch {
+    /* no .claude.json */
+  }
+
   return {
     agentCount,
     commandCount,
     skillCount,
-    hasMcpServers: false,
+    mcpServerCount,
     branch,
     lastCommit
   }
@@ -69,10 +79,52 @@ export async function readProjectFile(projectPath: string, relativePath: string)
 }
 
 export async function listDirectory(dirPath: string): Promise<{ name: string; isDirectory: boolean }[]> {
-  const entries = await readdir(dirPath, { withFileTypes: true })
-  return entries
-    .filter((e) => !e.name.startsWith('.') || e.name === '.claude')
-    .map((e) => ({ name: e.name, isDirectory: e.isDirectory() }))
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true })
+    return entries
+      .filter((e) => !e.name.startsWith('.') || e.name === '.claude')
+      .map((e) => ({ name: e.name, isDirectory: e.isDirectory() }))
+  } catch {
+    return []
+  }
+}
+
+export interface GitLogEntry {
+  hash: string
+  shortHash: string
+  author: string
+  date: string
+  relativeDate: string
+  message: string
+  filesChanged?: number
+}
+
+export async function getGitLog(projectPath: string, count = 50): Promise<GitLogEntry[]> {
+  try {
+    const SEP = '|||'
+    const raw = execSync(
+      `git log --format="%H${SEP}%h${SEP}%an${SEP}%aI${SEP}%ar${SEP}%s" -${count}`,
+      { cwd: projectPath, encoding: 'utf-8', stdio: 'pipe', maxBuffer: 1024 * 1024 }
+    ).trim()
+    if (!raw) return []
+
+    return raw.split('\n').map((line) => {
+      const [hash, shortHash, author, date, relativeDate, ...rest] = line.split(SEP)
+      return { hash, shortHash, author, date, relativeDate, message: rest.join(SEP) }
+    })
+  } catch {
+    return []
+  }
+}
+
+export function getGitDiffStat(projectPath: string): string {
+  try {
+    return execSync('git diff --stat HEAD~1 HEAD 2>/dev/null || echo ""', {
+      cwd: projectPath, encoding: 'utf-8', stdio: 'pipe'
+    }).trim()
+  } catch {
+    return ''
+  }
 }
 
 async function fileExists(path: string): Promise<boolean> {

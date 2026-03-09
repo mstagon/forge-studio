@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, mkdir, rm, rename } from 'fs/promises'
+import { readdir, readFile, writeFile, mkdir, rm, rename, stat } from 'fs/promises'
 import { join, basename } from 'path'
 import type { AgentConfig, CommandConfig, SkillConfig, SettingsConfig, McpServerConfig } from '../../shared/types/agent.types'
 
@@ -10,16 +10,22 @@ export async function listAgents(projectPath: string): Promise<AgentConfig[]> {
     const files = await readdir(dir)
     const agents: AgentConfig[] = []
     for (const file of files) {
-      if (!file.endsWith('.md')) continue
+      if (file.startsWith('.')) continue
       const filePath = join(dir, file)
+      const s = await stat(filePath)
+      if (!s.isFile()) continue
       const content = await readFile(filePath, 'utf-8')
-      const name = file.replace('.md', '')
+      const name = file.endsWith('.md') ? file.replace('.md', '') : file
+      // Auto-migrate: rename files without .md extension
+      if (!file.endsWith('.md')) {
+        await rename(join(dir, file), join(dir, `${file}.md`))
+      }
       agents.push({
         fileName: name,
         displayName: formatDisplayName(name),
         group: inferAgentGroup(name, content),
         content,
-        filePath,
+        filePath: file.endsWith('.md') ? filePath : join(dir, `${name}.md`),
         isActive: true
       })
     }
@@ -53,15 +59,21 @@ export async function listCommands(projectPath: string): Promise<CommandConfig[]
     const files = await readdir(dir)
     const commands: CommandConfig[] = []
     for (const file of files) {
-      if (!file.endsWith('.md')) continue
+      if (file.startsWith('.')) continue
       const filePath = join(dir, file)
+      const s = await stat(filePath)
+      if (!s.isFile()) continue
       const content = await readFile(filePath, 'utf-8')
-      const name = file.replace('.md', '')
+      const name = file.endsWith('.md') ? file.replace('.md', '') : file
+      // Auto-migrate: rename files without .md extension
+      if (!file.endsWith('.md')) {
+        await rename(join(dir, file), join(dir, `${file}.md`))
+      }
       commands.push({
         fileName: name,
         displayName: formatDisplayName(name),
         content,
-        filePath
+        filePath: file.endsWith('.md') ? filePath : join(dir, `${name}.md`),
       })
     }
     return commands.sort((a, b) => a.displayName.localeCompare(b.displayName))
@@ -158,6 +170,43 @@ export async function listMcpServers(): Promise<McpServerConfig[]> {
     return servers
   } catch {
     return []
+  }
+}
+
+// ── MCP Add/Remove ──
+
+export async function addMcpServer(name: string, command: string, args: string[], env?: Record<string, string>): Promise<void> {
+  const home = process.env.HOME || ''
+  const configPath = join(home, '.claude.json')
+  let config: Record<string, unknown> = {}
+
+  try {
+    const raw = await readFile(configPath, 'utf-8')
+    config = JSON.parse(raw)
+  } catch {
+    // file doesn't exist
+  }
+
+  if (!config.mcpServers) config.mcpServers = {}
+  const servers = config.mcpServers as Record<string, unknown>
+  servers[name] = { command, args, ...(env && Object.keys(env).length > 0 ? { env } : {}) }
+
+  await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8')
+}
+
+export async function removeMcpServer(name: string): Promise<void> {
+  const home = process.env.HOME || ''
+  const configPath = join(home, '.claude.json')
+
+  try {
+    const raw = await readFile(configPath, 'utf-8')
+    const config = JSON.parse(raw)
+    if (config.mcpServers?.[name]) {
+      delete config.mcpServers[name]
+      await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8')
+    }
+  } catch {
+    // file doesn't exist
   }
 }
 
