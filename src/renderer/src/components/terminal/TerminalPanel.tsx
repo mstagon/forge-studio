@@ -11,6 +11,7 @@ export function TerminalPanel(): React.ReactElement {
   const fitAddonRef = useRef<FitAddon | null>(null)
   const ptyIdRef = useRef<string | null>(null)
   const project = useAppStore((s) => s.project)
+  const setTerminalPtyId = useAppStore((s) => s.setTerminalPtyId)
 
   const initTerminal = useCallback(async () => {
     if (!containerRef.current || terminalRef.current) return
@@ -55,9 +56,11 @@ export function TerminalPanel(): React.ReactElement {
     fitAddonRef.current = fitAddon
 
     // Create PTY session
-    const cwd = project?.path || process.env.HOME || '/'
+    const homePath = await window.forgeApi.app.getPath('home').catch(() => '/')
+    const cwd = project?.path || homePath
     const ptyId = await window.forgeApi.terminal.create(cwd)
     ptyIdRef.current = ptyId
+    setTerminalPtyId(ptyId)
 
     // Terminal → PTY
     terminal.onData((data) => {
@@ -86,10 +89,11 @@ export function TerminalPanel(): React.ReactElement {
     return () => {
       removeDataListener()
       removeExitListener()
+      setTerminalPtyId(null)
       window.forgeApi.terminal.dispose(ptyId)
       terminal.dispose()
     }
-  }, [project?.path])
+  }, [project?.path, setTerminalPtyId])
 
   useEffect(() => {
     let cleanup: (() => void) | undefined

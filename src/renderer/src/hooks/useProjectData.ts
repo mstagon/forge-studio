@@ -13,7 +13,7 @@ export function useProjectData<T>(fetcher: (projectPath: string) => Promise<T>, 
       const result = await fetcher(project.path)
       setData(result)
     } catch (err) {
-      console.error('Failed to fetch project data:', err)
+      // Silently handle fetch errors — UI will show loading/empty state
     } finally {
       setLoading(false)
     }

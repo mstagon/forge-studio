@@ -1,20 +1,56 @@
 @import "tailwindcss";
 
+/* Dark theme (default) */
+:root {
+  --app-bg: #0D1117;
+  --app-surface: #161B22;
+  --app-surface-hover: #1C2128;
+  --app-border: #30363D;
+  --app-text-primary: #E6EDF3;
+  --app-text-secondary: #8B949E;
+  --app-accent: #58A6FF;
+  --app-success: #3FB950;
+  --app-warning: #D29922;
+  --app-error: #F85149;
+  --app-agent-plan: #A371F7;
+  --app-agent-dev: #58A6FF;
+  --app-agent-review: #F0883E;
+  --app-agent-doc: #3FB950;
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  --app-bg: #FFFFFF;
+  --app-surface: #F6F8FA;
+  --app-surface-hover: #EEF1F4;
+  --app-border: #D0D7DE;
+  --app-text-primary: #1F2328;
+  --app-text-secondary: #656D76;
+  --app-accent: #0969DA;
+  --app-success: #1A7F37;
+  --app-warning: #9A6700;
+  --app-error: #CF222E;
+  --app-agent-plan: #8250DF;
+  --app-agent-dev: #0969DA;
+  --app-agent-review: #BC4C00;
+  --app-agent-doc: #1A7F37;
+}
+
 @theme {
-  --color-bg: #0D1117;
-  --color-surface: #161B22;
-  --color-surface-hover: #1C2128;
-  --color-border: #30363D;
-  --color-text-primary: #E6EDF3;
-  --color-text-secondary: #8B949E;
-  --color-accent: #58A6FF;
-  --color-success: #3FB950;
-  --color-warning: #D29922;
-  --color-error: #F85149;
-  --color-agent-plan: #A371F7;
-  --color-agent-dev: #58A6FF;
-  --color-agent-review: #F0883E;
-  --color-agent-doc: #3FB950;
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-surface-hover: var(--app-surface-hover);
+  --color-border: var(--app-border);
+  --color-text-primary: var(--app-text-primary);
+  --color-text-secondary: var(--app-text-secondary);
+  --color-accent: var(--app-accent);
+  --color-success: var(--app-success);
+  --color-warning: var(--app-warning);
+  --color-error: var(--app-error);
+  --color-agent-plan: var(--app-agent-plan);
+  --color-agent-dev: var(--app-agent-dev);
+  --color-agent-review: var(--app-agent-review);
+  --color-agent-doc: var(--app-agent-doc);
 }
 
 /* Custom scrollbar */
@@ -28,12 +64,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--app-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+  background: var(--app-text-secondary);
 }
 
 /* Electron drag region */

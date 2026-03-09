@@ -10,26 +10,38 @@ import {
   BookOpen,
   Zap,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  FolderOpen
 } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
+import { useTranslation } from 'react-i18next'
 import { clsx } from 'clsx'
 
 const navItems = [
-  { id: 'dashboard' as const, icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
-  { id: 'workflow' as const, icon: GitBranch, label: 'Workflow', shortcut: '2' },
-  { id: 'agents' as const, icon: Bot, label: 'Agents', shortcut: '3' },
-  { id: 'planning' as const, icon: FileText, label: 'Planning', shortcut: '4' },
-  { id: 'claude-md' as const, icon: PenTool, label: 'CLAUDE.md', shortcut: '5' },
-  { id: 'commands' as const, icon: Terminal, label: 'Commands', shortcut: '6' },
-  { id: 'skills' as const, icon: Zap, label: 'Skills', shortcut: '7' },
-  { id: 'hooks' as const, icon: Wrench, label: 'Hooks', shortcut: '8' },
-  { id: 'mcp' as const, icon: Plug, label: 'MCP', shortcut: '9' },
-  { id: 'knowledge' as const, icon: BookOpen, label: 'Knowledge', shortcut: '0' }
+  { id: 'dashboard' as const, icon: LayoutDashboard, shortcut: '1' },
+  { id: 'workflow' as const, icon: GitBranch, shortcut: '2' },
+  { id: 'agents' as const, icon: Bot, shortcut: '3' },
+  { id: 'planning' as const, icon: FileText, shortcut: '4' },
+  { id: 'claude-md' as const, icon: PenTool, shortcut: '5' },
+  { id: 'commands' as const, icon: Terminal, shortcut: '6' },
+  { id: 'skills' as const, icon: Zap, shortcut: '7' },
+  { id: 'hooks' as const, icon: Wrench, shortcut: '8' },
+  { id: 'mcp' as const, icon: Plug, shortcut: '9' },
+  { id: 'knowledge' as const, icon: BookOpen, shortcut: '0' }
 ] as const
 
+const bottomNavItems = [
+  { id: 'timeline' as const, icon: Clock, shortcut: '' }
+] as const
+
+const navKeyMap: Record<string, string> = {
+  'claude-md': 'claudemd'
+}
+
 export function Sidebar(): React.ReactElement {
-  const { currentView, setView, sidebarCollapsed, toggleSidebar, project } = useAppStore()
+  const { currentView, setView, sidebarCollapsed, toggleSidebar, project, clearProject } = useAppStore()
+  const { t } = useTranslation()
 
   if (!project) return <div />
 
@@ -40,18 +52,9 @@ export function Sidebar(): React.ReactElement {
         sidebarCollapsed ? 'w-[52px]' : 'w-[200px]'
       )}
     >
-      {/* Logo area */}
-      <div className="h-[52px] flex items-center px-3 drag-region border-b border-border">
-        {!sidebarCollapsed && (
-          <span className="no-drag text-sm font-semibold text-text-primary truncate pl-8">
-            Forge Studio
-          </span>
-        )}
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 py-2 overflow-y-auto">
-        {navItems.map(({ id, icon: Icon, label, shortcut }) => (
+        {navItems.map(({ id, icon: Icon, shortcut }) => (
           <button
             key={id}
             onClick={() => setView(id)}
@@ -61,18 +64,53 @@ export function Sidebar(): React.ReactElement {
                 ? 'bg-surface-hover text-accent'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
             )}
-            title={`${label} (⌘${shortcut})`}
+            title={shortcut ? `${t('nav.' + (navKeyMap[id] || id))} (⌘${shortcut})` : t('nav.' + (navKeyMap[id] || id))}
           >
             <Icon size={18} className="shrink-0" />
             {!sidebarCollapsed && (
               <>
-                <span className="truncate">{label}</span>
-                <span className="ml-auto text-xs text-text-secondary opacity-50">⌘{shortcut}</span>
+                <span className="truncate">{t('nav.' + (navKeyMap[id] || id))}</span>
+                {shortcut && <span className="ml-auto text-xs text-text-secondary opacity-50">⌘{shortcut}</span>}
               </>
             )}
           </button>
         ))}
+
+        {/* Separator */}
+        <div className="mx-3 my-2 border-t border-border" />
+
+        {bottomNavItems.map(({ id, icon: Icon, shortcut }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors no-drag',
+              currentView === id
+                ? 'bg-surface-hover text-accent'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+            )}
+            title={shortcut ? `${t('nav.' + (navKeyMap[id] || id))} (⌘${shortcut})` : t('nav.' + (navKeyMap[id] || id))}
+          >
+            <Icon size={18} className="shrink-0" />
+            {!sidebarCollapsed && (
+              <span className="truncate">{t('nav.' + (navKeyMap[id] || id))}</span>
+            )}
+          </button>
+        ))}
       </nav>
+
+      {/* Close Project */}
+      <button
+        onClick={clearProject}
+        className={clsx(
+          'no-drag flex items-center gap-3 px-3 py-2 text-sm transition-colors text-text-secondary hover:text-text-primary hover:bg-surface-hover',
+          sidebarCollapsed && 'justify-center'
+        )}
+        title={t('common.closeProject')}
+      >
+        <FolderOpen size={18} className="shrink-0" />
+        {!sidebarCollapsed && <span className="truncate">{t('common.closeProject')}</span>}
+      </button>
 
       {/* Collapse toggle */}
       <button
