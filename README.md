@@ -79,17 +79,52 @@ Claude Code is powerful, but setting it up is tedious:
 
 ### Prerequisites
 
-- **Node.js** 22+
-- **Claude Code CLI** installed (`claude` command available)
+| Requirement | macOS | Windows |
+|-------------|-------|---------|
+| **Node.js** | 22+ | 22+ |
+| **Claude Code CLI** | `claude` command available | `claude` command available |
+| **Build Tools** | Xcode Command Line Tools | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (C++ workload) |
+| **Python** | Pre-installed | 3.10+ (for native module compilation) |
 
-### Install & Run
+> **Why Build Tools?** Forge Studio uses native Node.js modules (`node-pty`, `better-sqlite3`) that compile from C/C++ source during `npm install`.
+
+### macOS
 
 ```bash
+# 1. Install prerequisites (if not already)
+xcode-select --install               # Xcode CLI tools (for node-gyp)
+brew install node@22                  # or use nvm
+
+# 2. Clone & run
 git clone https://github.com/mstagon/forge-studio.git
 cd forge-studio
 npm install
 npm run dev
 ```
+
+### Windows
+
+```powershell
+# 1. Install prerequisites
+# Option A: Install everything via npm (run as Administrator)
+npm install -g windows-build-tools
+
+# Option B: Manual install
+#   - Visual Studio Build Tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+#     → Select "Desktop development with C++" workload
+#   - Python 3.10+: https://www.python.org/downloads/
+
+# 2. Clone & run
+git clone https://github.com/mstagon/forge-studio.git
+cd forge-studio
+npm install
+npm run dev
+```
+
+> **Windows troubleshooting:**
+> - If `node-pty` fails to install, ensure Build Tools are installed and run `npm config set msvs_version 2022`
+> - If `better-sqlite3` fails, try `npm install --build-from-source`
+> - PowerShell execution policy error: run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
 ### Build
 
@@ -98,6 +133,15 @@ npm run build        # Production build
 npm run typecheck    # TypeScript check
 npm run lint         # ESLint
 ```
+
+### Platform Notes
+
+| Feature | macOS | Windows |
+|---------|-------|---------|
+| Titlebar | Native traffic light integration | Windows overlay controls |
+| Terminal | Uses `$SHELL` (zsh/bash) | Uses PowerShell |
+| Keyboard shortcuts | `Cmd` based | `Ctrl` based |
+| Claude CLI detection | `which claude` | `where claude` |
 
 ---
 
@@ -278,12 +322,12 @@ forge-studio/
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+K` | Command Palette |
-| `Cmd+1` ~ `Cmd+0` | Switch views (Dashboard → Knowledge) |
-| `` Cmd+` `` | Toggle terminal |
-| `Cmd+B` | Toggle sidebar |
+| Action | macOS | Windows |
+|--------|-------|---------|
+| Command Palette | `Cmd+K` | `Ctrl+K` |
+| Switch views | `Cmd+1` ~ `Cmd+0` | `Ctrl+1` ~ `Ctrl+0` |
+| Toggle terminal | `` Cmd+` `` | `` Ctrl+` `` |
+| Toggle sidebar | `Cmd+B` | `Ctrl+B` |
 
 ---
 
