@@ -1,4 +1,4 @@
-import { Play, Square, CheckCircle2, Circle, Loader2, SkipForward, ThumbsUp, XCircle, Clock, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Settings2 } from 'lucide-react'
+import { Play, Square, CheckCircle2, Circle, Loader2, SkipForward, ThumbsUp, XCircle, Clock, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Settings2, Layers, ArrowRight, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/app.store'
@@ -24,14 +24,36 @@ interface WorkflowRunState {
   status: 'idle' | 'running' | 'paused' | 'done' | 'failed'
 }
 
-const DEFAULT_STEPS: WorkflowStepDef[] = [
-  { id: '1', name: 'Plan Feature', command: 'Write a PRD for the feature: {feature}', type: 'auto' },
-  { id: '2', name: 'Generate Spec', command: 'Create a technical spec from the PRD in docs/prd/', type: 'auto' },
-  { id: '3', name: 'Review Plan', command: '', type: 'gate' },
-  { id: '4', name: 'Implement', command: 'Implement the feature based on the spec in docs/specs/', type: 'auto' },
-  { id: '5', name: 'Code Review', command: 'Review the implementation for bugs, security issues, and code quality', type: 'auto' },
-  { id: '6', name: 'Approval', command: '', type: 'gate' },
-  { id: '7', name: 'Document', command: 'Update documentation for the implemented feature', type: 'auto' }
+interface WorkflowPreset {
+  id: string
+  nameKey: string
+  descKey: string
+  steps: WorkflowStepDef[]
+}
+
+const PRESETS: WorkflowPreset[] = [
+  {
+    id: 'dev',
+    nameKey: 'workflow.preset.dev',
+    descKey: 'workflow.preset.devDesc',
+    steps: [
+      { id: '1', name: 'Implement', command: 'Read docs/planning/ for project context (overview, architecture, roadmap). Implement the next priority feature from the roadmap.', type: 'auto' },
+      { id: '2', name: 'Code Review', command: 'Review the implementation for bugs, security issues, and code quality', type: 'auto' },
+      { id: '3', name: 'Approval', command: '', type: 'gate' },
+      { id: '4', name: 'Test', command: 'Write and run tests for the implemented changes', type: 'auto' },
+      { id: '5', name: 'Document', command: 'Update documentation for the implemented changes', type: 'auto' }
+    ]
+  },
+  {
+    id: 'quick',
+    nameKey: 'workflow.preset.quick',
+    descKey: 'workflow.preset.quickDesc',
+    steps: [
+      { id: '1', name: 'Implement', command: 'Implement the requested changes based on existing project docs and codebase', type: 'auto' },
+      { id: '2', name: 'Review', command: 'Review the implementation for bugs, security issues, and code quality', type: 'auto' },
+      { id: '3', name: 'Approval', command: '', type: 'gate' }
+    ]
+  }
 ]
 
 let nextStepId = 100
@@ -56,14 +78,44 @@ function StepIcon({ status }: { status: WorkflowStepStatus['status'] }): React.R
 export function WorkflowView(): React.ReactElement {
   const { t } = useTranslation()
   const project = useAppStore((s) => s.project)
+  const setView = useAppStore((s) => s.setView)
   const claudeInstalled = useAppStore((s) => s.claudeInstalled)
-  const [featureName, setFeatureName] = useState('')
   const [runState, setRunState] = useState<WorkflowRunState | null>(null)
   const [selectedStepOutput, setSelectedStepOutput] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(false)
-  const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>(DEFAULT_STEPS)
+  const [selectedPreset, setSelectedPreset] = useState<string>('dev')
+  const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>(PRESETS[0].steps)
+  const [stepsInitialized, setStepsInitialized] = useState(false)
   const [editingStep, setEditingStep] = useState<string | null>(null)
   const outputRef = useRef<HTMLPreElement>(null)
+  const [hasProjectDocs, setHasProjectDocs] = useState<boolean | null>(null)
+  const [presetDropdownOpen, setPresetDropdownOpen] = useState(false)
+
+  useEffect(() => {
+    if (!project) return
+    checkProjectDocs()
+  }, [project?.path])
+
+  const checkProjectDocs = async (): Promise<void> => {
+    if (!project) return
+    try {
+      const entries = await window.forgeApi.project.readDir(`${project.path}/docs/planning`)
+      const hasMd = entries.some((e: { name: string }) => e.name.endsWith('.md'))
+      setHasProjectDocs(hasMd)
+    } catch {
+      setHasProjectDocs(false)
+    }
+    if (!stepsInitialized) {
+      setStepsInitialized(true)
+    }
+  }
+
+  const handlePresetChange = (presetId: string): void => {
+    setSelectedPreset(presetId)
+    const preset = PRESETS.find((p) => p.id === presetId)
+    if (preset) setCustomSteps(preset.steps)
+    setPresetDropdownOpen(false)
+  }
 
   // Listen for workflow state changes
   useEffect(() => {
@@ -113,20 +165,12 @@ export function WorkflowView(): React.ReactElement {
 
   const handleStart = async (): Promise<void> => {
     if (!project) return
-    if (!featureName.trim()) {
-      toast.warning(t('workflow.featureNameRequired'))
-      return
-    }
     if (!claudeInstalled) {
       toast.error(t('workflow.claudeNotInstalled'))
       return
     }
     try {
-      const steps = customSteps.map((s) => ({
-        ...s,
-        command: s.command.replace('{feature}', featureName)
-      }))
-      const state = await window.forgeApi.workflow.start(project.path, steps) as WorkflowRunState
+      const state = await window.forgeApi.workflow.start(project.path, customSteps) as WorkflowRunState
       setRunState(state)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('workflow.startFailed'))
@@ -179,6 +223,7 @@ export function WorkflowView(): React.ReactElement {
   const isRunning = runState?.status === 'running' || runState?.status === 'paused'
   const steps = runState?.steps ?? customSteps.map((s) => ({ ...s, status: 'pending' as const, output: '' }))
   const viewingStep = selectedStepOutput ? steps.find((s) => s.id === selectedStepOutput) : null
+  const currentPreset = PRESETS.find((p) => p.id === selectedPreset)
 
   return (
     <div className="h-full flex flex-col">
@@ -213,29 +258,79 @@ export function WorkflowView(): React.ReactElement {
       <div className="flex-1 flex overflow-hidden">
         {/* Left: pipeline */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Feature input */}
+          {/* Project planning required notice */}
+          {hasProjectDocs === false && !isRunning && (
+            <div className="mb-6 max-w-lg bg-warning/5 border border-warning/20 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Layers size={20} className="text-warning mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-text-primary mb-1">{t('workflow.projectPlanningRequired')}</div>
+                  <p className="text-xs text-text-secondary mb-3">{t('workflow.projectPlanningRequiredDesc')}</p>
+                  <button
+                    onClick={() => setView('planning')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-accent text-bg rounded text-xs font-medium hover:bg-accent/90 transition-colors"
+                  >
+                    {t('workflow.goToProjectPlanning')}
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Preset selector + Run/Stop */}
           <div className="mb-6 max-w-lg">
-            <label className="text-sm text-text-secondary block mb-2">{t('planning.featureName')}</label>
+            <label className="text-sm text-text-secondary block mb-2">{t('workflow.selectPreset')}</label>
             <div className="flex gap-2">
-              <input
-                value={featureName}
-                onChange={(e) => setFeatureName(e.target.value)}
-                placeholder={t('workflow.featureNamePlaceholder', 'e.g., product-upload')}
-                disabled={isRunning}
-                className="flex-1 bg-bg border border-border rounded-lg px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
-              />
+              <div className="relative flex-1">
+                <button
+                  type="button"
+                  onClick={() => !isRunning && setPresetDropdownOpen(!presetDropdownOpen)}
+                  disabled={isRunning}
+                  className="w-full flex items-center justify-between bg-bg border border-border rounded-lg px-4 py-2.5 text-sm text-text-primary hover:border-text-secondary/50 disabled:opacity-50 transition-colors"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">{currentPreset ? t(currentPreset.nameKey) : ''}</span>
+                    <span className="text-xs text-text-secondary">{currentPreset ? t(currentPreset.descKey) : ''}</span>
+                  </div>
+                  <ChevronDown size={14} className={clsx('text-text-secondary transition-transform', presetDropdownOpen && 'rotate-180')} />
+                </button>
+                {presetDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setPresetDropdownOpen(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                      {PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => handlePresetChange(preset.id)}
+                          className={clsx(
+                            'w-full text-left px-4 py-3 transition-colors hover:bg-surface-hover',
+                            preset.id === selectedPreset ? 'bg-accent/5 border-l-2 border-accent' : 'border-l-2 border-transparent'
+                          )}
+                        >
+                          <div className="text-sm font-medium text-text-primary">{t(preset.nameKey)}</div>
+                          <div className="text-xs text-text-secondary mt-0.5">{t(preset.descKey)}</div>
+                          <div className="text-[10px] text-text-secondary/60 mt-1">
+                            {preset.steps.length} {t('workflow.stepsCount')}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               {isRunning ? (
                 <button
                   onClick={handleStop}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shrink-0"
                 >
                   <Square size={14} /> {t('common.stop')}
                 </button>
               ) : (
                 <button
                   onClick={handleStart}
-                  disabled={!featureName || !project}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-accent text-bg rounded-lg text-sm font-medium hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  disabled={!project}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-accent text-bg rounded-lg text-sm font-medium hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
                 >
                   <Play size={14} /> {t('common.run')}
                 </button>

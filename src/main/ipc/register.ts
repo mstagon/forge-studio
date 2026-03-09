@@ -1,5 +1,5 @@
 import { ipcMain, dialog, app, BrowserWindow } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, copyFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { IPC } from '../../shared/constants/channels'
 import { createPtySession, writeToPty, resizePty, disposePty, onPtyData, onPtyExit, disposeAll } from '../services/pty-manager'
@@ -178,8 +178,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // ── Agent Team ──
 
-  ipcMain.handle(IPC.TEAM_START, async (_event, projectPath: string, featureName: string) => {
-    return startTeam(projectPath, featureName)
+  ipcMain.handle(IPC.TEAM_START, async (_event, projectPath: string, name: string, mode?: string) => {
+    return startTeam(projectPath, name, (mode === 'project' ? 'project' : 'feature'))
   })
   ipcMain.handle(IPC.TEAM_STOP, async () => stopTeam())
   ipcMain.handle(IPC.TEAM_GET_STATE, async () => getTeamState())
@@ -199,6 +199,26 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC.DIALOG_OPEN_DIRECTORY, async () => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
     return result.canceled ? null : result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.DIALOG_OPEN_FILES, async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Text Documents', extensions: ['md', 'txt', 'rst', 'adoc', 'org'] },
+        { name: 'Data Files', extensions: ['json', 'yaml', 'yml', 'csv', 'xml', 'toml'] },
+        { name: 'Web Files', extensions: ['html', 'htm', 'tex', 'rtf'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    return result.canceled ? [] : result.filePaths
+  })
+
+  ipcMain.handle(IPC.FS_COPY_FILE, async (_event, src: string, destDir: string, destName: string) => {
+    await mkdir(destDir, { recursive: true })
+    const dest = join(destDir, destName)
+    await copyFile(src, dest)
+    return dest
   })
 
   app.on('before-quit', () => {

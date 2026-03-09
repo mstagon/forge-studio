@@ -1,6 +1,6 @@
 import type { IPty } from 'node-pty'
 import { platform } from 'os'
-import { access } from 'fs/promises'
+import { access, readdir } from 'fs/promises'
 import { join } from 'path'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../../shared/constants/channels'
@@ -46,18 +46,43 @@ export function getTeamState(): TeamRunState | null {
   return currentTeamRun
 }
 
-function buildTeam(featureName: string): TeamMember[] {
+export type TeamMode = 'project' | 'feature'
+
+function buildProjectTeam(projectName: string): TeamMember[] {
+  return [
+    {
+      role: 'Product Strategist',
+      agent: 'product-strategist',
+      prompt: `You are a product strategist. Define the overall project vision, scope, and goals for: "${projectName}". Include: project overview, target audience, core value proposition, key assumptions, constraints, and success criteria. Save the output to docs/planning/project-overview.md`,
+      outputFile: 'docs/planning/project-overview.md'
+    },
+    {
+      role: 'System Architect',
+      agent: 'system-architect',
+      prompt: `You are a system architect. Read the project overview from docs/planning/project-overview.md and design the overall system architecture. Include: tech stack decisions with rationale, high-level architecture diagram (in mermaid), directory/module structure, data model overview, external service integrations, and key architectural decisions (ADRs). Save the output to docs/planning/architecture.md`,
+      outputFile: 'docs/planning/architecture.md'
+    },
+    {
+      role: 'Feature Planner',
+      agent: 'feature-planner',
+      prompt: `You are a feature planner. Read the project overview from docs/planning/project-overview.md and the architecture from docs/planning/architecture.md. Identify all features needed, group them into milestones, define priorities (must-have / should-have / nice-to-have), map dependencies between features, and suggest an implementation order. Output as a structured roadmap. Save the output to docs/planning/feature-roadmap.md`,
+      outputFile: 'docs/planning/feature-roadmap.md'
+    }
+  ]
+}
+
+function buildFeatureTeam(featureName: string): TeamMember[] {
   return [
     {
       role: 'Product Manager',
       agent: 'product-planner',
-      prompt: `You are a product manager. Write a comprehensive PRD (Product Requirements Document) for the feature: "${featureName}". Include: background, target users, user stories, functional requirements, edge cases, non-functional requirements, and success metrics. Save the output to docs/prd/${featureName}.md`,
+      prompt: `You are a product manager. Write a comprehensive PRD (Product Requirements Document) for the feature: "${featureName}". If docs/planning/project-overview.md exists, use it as context for project-level alignment. Include: background, target users, user stories, functional requirements, edge cases, non-functional requirements, and success metrics. Save the output to docs/prd/${featureName}.md`,
       outputFile: `docs/prd/${featureName}.md`
     },
     {
       role: 'Tech Architect',
       agent: 'tech-architect',
-      prompt: `You are a tech architect. Read the PRD from docs/prd/${featureName}.md and create a detailed technical specification. Include: architecture overview, component design, data models, API contracts, state management approach, error handling strategy, and test plan. Use context7 MCP to verify any package APIs. Save the output to docs/specs/${featureName}-spec.md`,
+      prompt: `You are a tech architect. Read the PRD from docs/prd/${featureName}.md and create a detailed technical specification. If docs/planning/architecture.md exists, align with the project architecture. Include: architecture overview, component design, data models, API contracts, state management approach, error handling strategy, and test plan. Use context7 MCP to verify any package APIs. Save the output to docs/specs/${featureName}-spec.md`,
       outputFile: `docs/specs/${featureName}-spec.md`
     },
     {
@@ -78,12 +103,39 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-export async function startTeam(projectPath: string, featureName: string): Promise<TeamRunState> {
+async function scanExistingDocs(projectPath: string): Promise<string[]> {
+  const docDirs = ['planning', 'prd', 'specs', 'planningdocs', 'architecture']
+  const found: string[] = []
+  for (const dir of docDirs) {
+    try {
+      const entries = await readdir(join(projectPath, 'docs', dir))
+      for (const entry of entries) {
+        if (/\.(md|txt|rst|json|yaml|yml|csv|xml|html|toml|adoc|tex)$/i.test(entry)) {
+          found.push(`docs/${dir}/${entry}`)
+        }
+      }
+    } catch { /* dir doesn't exist */ }
+  }
+  return found
+}
+
+function injectExistingDocsContext(prompt: string, existingDocs: string[]): string {
+  if (existingDocs.length === 0) return prompt
+  const docList = existingDocs.map((d) => `  - ${d}`).join('\n')
+  return `${prompt}\n\nIMPORTANT: The following existing documents are available in the project. Read and reference them as context before generating your output:\n${docList}`
+}
+
+export async function startTeam(projectPath: string, name: string, mode: TeamMode = 'feature'): Promise<TeamRunState> {
   if (currentTeamRun?.status === 'running') {
     throw new Error('A team is already running')
   }
 
-  const members = buildTeam(featureName)
+  const existingDocs = await scanExistingDocs(projectPath)
+  const rawMembers = mode === 'project' ? buildProjectTeam(name) : buildFeatureTeam(name)
+  const members = rawMembers.map((m) => ({
+    ...m,
+    prompt: injectExistingDocsContext(m.prompt, existingDocs.filter((d) => d !== m.outputFile))
+  }))
 
   // Check which steps already have output files (resume support)
   let firstPending = 0
@@ -102,7 +154,7 @@ export async function startTeam(projectPath: string, featureName: string): Promi
 
   currentTeamRun = {
     id: `team-${Date.now()}`,
-    featureName,
+    featureName: name,
     members: memberStatuses,
     currentMember: firstPending,
     status: firstPending >= members.length ? 'done' : 'running'

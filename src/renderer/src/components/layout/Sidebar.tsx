@@ -20,9 +20,9 @@ import { clsx } from 'clsx'
 
 const navItems = [
   { id: 'dashboard' as const, icon: LayoutDashboard, shortcut: '1' },
-  { id: 'workflow' as const, icon: GitBranch, shortcut: '2' },
-  { id: 'agents' as const, icon: Bot, shortcut: '3' },
-  { id: 'planning' as const, icon: FileText, shortcut: '4' },
+  { id: 'planning' as const, icon: FileText, shortcut: '2' },
+  { id: 'workflow' as const, icon: GitBranch, shortcut: '3' },
+  { id: 'agents' as const, icon: Bot, shortcut: '4' },
   { id: 'claude-md' as const, icon: PenTool, shortcut: '5' },
   { id: 'commands' as const, icon: Terminal, shortcut: '6' },
   { id: 'skills' as const, icon: Zap, shortcut: '7' },

@@ -89,5 +89,7 @@ export const IPC = {
 
   // App
   APP_GET_PATH: 'app:get-path',
-  DIALOG_OPEN_DIRECTORY: 'dialog:open-directory'
+  DIALOG_OPEN_DIRECTORY: 'dialog:open-directory',
+  DIALOG_OPEN_FILES: 'dialog:open-files',
+  FS_COPY_FILE: 'fs:copy-file'
 } as const

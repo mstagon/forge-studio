@@ -32,7 +32,8 @@ const api = {
 
   fs: {
     readFile: (path: string): Promise<string> => ipcRenderer.invoke(IPC.FS_READ_FILE, path),
-    writeFile: (path: string, content: string): Promise<void> => ipcRenderer.invoke(IPC.FS_WRITE_FILE, path, content)
+    writeFile: (path: string, content: string): Promise<void> => ipcRenderer.invoke(IPC.FS_WRITE_FILE, path, content),
+    copyFile: (src: string, destDir: string, destName: string): Promise<string> => ipcRenderer.invoke(IPC.FS_COPY_FILE, src, destDir, destName)
   },
 
   claudeMd: {
@@ -106,7 +107,7 @@ const api = {
   },
 
   team: {
-    start: (projectPath: string, featureName: string) => ipcRenderer.invoke(IPC.TEAM_START, projectPath, featureName),
+    start: (projectPath: string, name: string, mode?: 'project' | 'feature') => ipcRenderer.invoke(IPC.TEAM_START, projectPath, name, mode ?? 'feature'),
     stop: () => ipcRenderer.invoke(IPC.TEAM_STOP),
     getState: () => ipcRenderer.invoke(IPC.TEAM_GET_STATE),
     onState: (callback: (state: unknown) => void) => {
@@ -133,7 +134,8 @@ const api = {
 
   app: {
     getPath: (name: string): Promise<string> => ipcRenderer.invoke(IPC.APP_GET_PATH, name),
-    openDirectory: (): Promise<string | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_DIRECTORY)
+    openDirectory: (): Promise<string | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_DIRECTORY),
+    openFiles: (): Promise<string[]> => ipcRenderer.invoke(IPC.DIALOG_OPEN_FILES)
   }
 }
 
