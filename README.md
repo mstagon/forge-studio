@@ -126,60 +126,101 @@ We welcome contributions! Here's how you can help:
 
 Presets are the most impactful contribution. If you use a tech stack that's not covered, you can add one.
 
-**What a preset provides:**
-- `CLAUDE.md` content tailored for the stack
-- Agents with stack-specific expertise
-- Commands for common workflows
-- Skills with code patterns and conventions
+> Full development guide: **[docs/contributing-presets.md](docs/contributing-presets.md)**
 
-**How to add a preset:**
+**What a preset generates:**
+
+| Output | Path | Description |
+|--------|------|-------------|
+| CLAUDE.md | `./CLAUDE.md` | Tech stack, coding rules, forbidden patterns |
+| Agents | `.claude/agents/*.md` | 6 base + your stack-specific specialists |
+| Commands | `.claude/commands/*.md` | plan, implement, review, full-cycle, retrospective |
+| Skills | `.claude/skills/*/SKILL.md` | Real code patterns and templates |
+| Hooks | `.claude/settings.json` | Auto-format on save, permissions |
+
+**Quick start:**
 
 1. Fork the repo
-2. Look at an existing preset in `src/main/services/preset-registry.ts`
-3. Add your preset following this structure:
+2. Open `src/main/services/preset-registry.ts`
+3. Add your preset to the `PRESETS` array:
 
 ```typescript
 {
-  id: 'your-stack',
-  name: 'Your Stack',
-  description: 'Brief description',
-  icon: '🔧',
-  category: 'fullstack', // or 'frontend', 'backend', 'mobile', 'data'
+  id: 'go-gin',                              // unique kebab-case ID
+  name: 'Go + Gin',
+  description: 'Go REST API with Gin and GORM',
+  icon: '🔵',
+  category: 'backend',                       // mobile | web | backend | fullstack | custom
+
+  stack: {
+    language: 'Go 1.22+',
+    framework: 'Gin v1.10',
+    database: 'PostgreSQL + GORM',            // optional fields
+    packages: ['validator/v10', 'jwt-go']     // optional
+  },
+
+  architecture: {
+    pattern: 'Clean Architecture',
+    structure: 'cmd/api/ + internal/{handler,service,repository}/'
+  },
+
+  build: {
+    setup: 'go mod tidy',
+    test: 'go test ./... -v',
+    format: 'gofmt -w .'
+  },
+
+  codingRules: [ 'Return errors, don\'t panic', 'Table-driven tests', /* ... */ ],
+  forbiddenPatterns: [ 'panic() in production', 'SQL string concatenation', /* ... */ ],
+
   agents: [
-    // Base agents are included automatically
-    // Add stack-specific agents:
-    { name: 'your-specialist', content: '# your-specialist\n\n...' }
+    // Base agents — leave content empty (auto-filled with your stack context)
+    { fileName: 'product-planner', content: '' },
+    { fileName: 'tech-architect', content: '' },
+    { fileName: 'task-decomposer', content: '' },
+    { fileName: 'code-reviewer', content: '' },
+    { fileName: 'security-auditor', content: '' },
+    { fileName: 'doc-writer', content: '' },
+
+    // Stack-specific agents — write full content
+    { fileName: 'gin-handler', content: '# gin-handler\n\nYou are a Go Gin handler specialist.\n\n## Role\n...' }
   ],
-  commands: [
-    { name: 'your-command', content: '# your-command\n\n...' }
-  ],
+
+  commands: [ /* copy pattern from existing preset, adapt tool commands */ ],
   skills: [
-    { name: 'your-skill', content: '# Your Skill\n\n...' }
+    { dirName: 'gin-handler-pattern', content: '# Gin Handler Pattern\n\n```go\nfunc (h *Handler) Create(c *gin.Context) {\n  ...\n}\n```' }
   ],
-  claudeMd: {
-    techStack: 'Your tech stack description',
-    architecture: 'Your architecture description',
-    buildCommands: ['npm run dev', 'npm run build'],
-    codingRules: ['Rule 1', 'Rule 2'],
-    forbiddenPatterns: ['Pattern 1']
-  }
+
+  hooks: {
+    PostToolUse: [
+      { matcher: 'Write(*.go)', command: 'gofmt -w "$FILEPATH"' }
+    ]
+  },
+
+  recommendedMcp: [
+    { name: 'context7', command: 'npx', args: ['-y', '@upstash/context7-mcp@latest'], required: true }
+  ]
 }
 ```
 
-4. Test it by creating a new project with your preset
-5. Submit a PR
+4. Run `npm run typecheck` to verify
+5. Test: `npm run dev` → New Project → select your preset
+6. Submit a PR
 
 **Preset ideas we'd love:**
-- `go-gin` — Go + Gin + GORM
-- `rust-axum` — Rust + Axum + SQLx
-- `react-native-expo` — React Native + Expo
-- `svelte-kit` — SvelteKit + Drizzle
-- `django-rest` — Django + DRF
-- `spring-boot` — Java + Spring Boot
-- `rails` — Ruby on Rails
-- `laravel` — PHP + Laravel
-- `dotnet-minimal` — .NET Minimal API
-- `elixir-phoenix` — Elixir + Phoenix
+
+| Preset ID | Stack |
+|-----------|-------|
+| `go-gin` | Go + Gin + GORM |
+| `rust-axum` | Rust + Axum + SQLx |
+| `react-native-expo` | React Native + Expo |
+| `svelte-kit` | SvelteKit + Drizzle |
+| `django-rest` | Django + DRF |
+| `spring-boot` | Java + Spring Boot |
+| `rails` | Ruby on Rails |
+| `laravel` | PHP + Laravel |
+| `dotnet-minimal` | .NET Minimal API |
+| `elixir-phoenix` | Elixir + Phoenix |
 
 ### 2. Add Translations
 
