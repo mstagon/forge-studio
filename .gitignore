@@ -4,3 +4,4 @@ dist/
 *.dmg
 *.AppImage
 .DS_Store
+tsconfig.web.tsbuildinfo
