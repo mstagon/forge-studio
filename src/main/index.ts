@@ -1,17 +1,20 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers, updateMainWindow } from './ipc/register'
 
 function createWindow(): BrowserWindow {
+  const isMac = platform() === 'darwin'
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 15, y: 12 },
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 15, y: 12 } }
+      : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#0D1117', symbolColor: '#9CA3AF', height: 36 } }),
     backgroundColor: '#0D1117',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

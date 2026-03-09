@@ -1,8 +1,10 @@
 import { execSync } from 'child_process'
+import { platform } from 'os'
 
 export function isClaudeInstalled(): boolean {
   try {
-    execSync('which claude', { encoding: 'utf-8', stdio: 'pipe' })
+    const cmd = platform() === 'win32' ? 'where claude' : 'which claude'
+    execSync(cmd, { encoding: 'utf-8', stdio: 'pipe' })
     return true
   } catch {
     return false
