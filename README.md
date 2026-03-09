@@ -1,5 +1,9 @@
 # Forge Studio
 
+<p align="center">
+  🌎 English | <a href="./README.ko.md">🇰🇷 한국어</a>
+</p>
+
 **AI Development Cockpit** — Design, manage, and orchestrate your Claude Code harness visually.
 
 > Stop editing scattered text files. Build your AI development workflow with a visual desktop app.
