@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plug, Circle, Plus, Trash2, X } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAppStore } from '../stores/app.store'
 import { toast } from '../stores/toast.store'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import type { McpServerConfig } from '../../../shared/types/agent.types'
@@ -17,6 +18,7 @@ const POPULAR_SERVERS = [
 
 export function McpView(): React.ReactElement {
   const { t } = useTranslation()
+  const project = useAppStore((s) => s.project)
   const [servers, setServers] = useState<McpServerConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -29,14 +31,15 @@ export function McpView(): React.ReactElement {
   const [addEnvVal, setAddEnvVal] = useState('')
   const [envPairs, setEnvPairs] = useState<{ key: string; value: string }[]>([])
 
-  const loadServers = (): void => {
+  const loadServers = useCallback((): void => {
+    setLoading(true)
     window.forgeApi.mcp.list().then((data: McpServerConfig[]) => {
       setServers(data)
       setLoading(false)
     }).catch(() => { setLoading(false) })
-  }
+  }, [])
 
-  useEffect(() => { loadServers() }, [])
+  useEffect(() => { loadServers() }, [project?.path, loadServers])
 
   const handleAdd = async (): Promise<void> => {
     if (!addName || !addCommand) return

@@ -16,12 +16,13 @@ export function startWatching(projectPath: string, mainWindow: BrowserWindow): v
   watcher = watch(
     [
       `${projectPath}/CLAUDE.md`,
-      `${projectPath}/.claude/**/*`
+      `${projectPath}/.claude/**/*`,
+      `${projectPath}/.git/HEAD`,
+      `${projectPath}/.git/refs/heads`
     ],
     {
       ignoreInitial: true,
-      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
-      ignored: /(^|[\/\\])\../  // ignore dotfiles inside .claude
+      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
     }
   )
 

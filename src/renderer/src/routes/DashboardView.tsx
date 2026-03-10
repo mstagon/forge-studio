@@ -49,7 +49,7 @@ export function DashboardView(): React.ReactElement {
 
   useEffect(() => {
     refreshStats()
-  }, [])
+  }, [project?.path])
 
   const handleExportPreset = async (): Promise<void> => {
     if (!project) return

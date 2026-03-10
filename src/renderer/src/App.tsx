@@ -105,6 +105,15 @@ export default function App(): React.ReactElement {
     }
   }, [project?.path])
 
+  // Refresh stats when .claude/ files change
+  useEffect(() => {
+    if (!project) return
+    const unsubscribe = window.forgeApi.project.onFileChanged(() => {
+      useAppStore.getState().refreshStats()
+    })
+    return unsubscribe
+  }, [project?.path])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
