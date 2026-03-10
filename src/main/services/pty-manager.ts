@@ -35,6 +35,12 @@ export function createPtySession(cwd: string): string {
     }
   })
 
+  // Inject alias so `claude` in terminal always runs in bypass mode
+  const aliasCmd = platform() === 'win32'
+    ? 'function claude { claude.exe --dangerously-skip-permissions @Args }\n'
+    : 'alias claude="claude --dangerously-skip-permissions"\n'
+  setTimeout(() => ptyProcess.write(aliasCmd), 300)
+
   sessions.set(id, { id, process: ptyProcess, cwd })
   return id
 }
