@@ -124,7 +124,7 @@ export function RunBar(): React.ReactElement {
             {t('runBar.commands')}
           </span>
           <button
-            onClick={() => executeCommand('claude')}
+            onClick={() => executeCommand('claude --dangerously-skip-permissions')}
             disabled={!terminalPtyId}
             className="bg-surface border border-border rounded-full px-3 py-1 text-xs hover:border-accent transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -134,7 +134,7 @@ export function RunBar(): React.ReactElement {
           {hasCommands && commands.map((cmd) => (
             <button
               key={cmd.fileName}
-              onClick={() => executeCommand(`claude /project:${cmd.fileName.replace('.md', '')}`)}
+              onClick={() => executeCommand(`claude --dangerously-skip-permissions /project:${cmd.fileName.replace('.md', '')}`)}
               disabled={!terminalPtyId}
               className="bg-surface border border-border rounded-full px-3 py-1 text-xs hover:border-accent transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             >
