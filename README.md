@@ -405,7 +405,7 @@ forge-studio/
 
 ## License
 
-[MIT](LICENSE)
+[GPL](LICENSE)
 
 ---
 
